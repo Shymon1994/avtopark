@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Звіти - FleetMaster 3000</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .table-row:hover {
+            background-color: #f1f5f9;
+        }
+        .sortable {
+            cursor: pointer;
+            position: relative;
+        }
+        .sortable:hover {
+            background-color: #e2e8f0;
+        }
+        .sort-icon {
+            margin-left: 5px;
+            opacity: 0.5;
+        }
+        .sort-icon.active {
+            opacity: 1;
+        }
+        .chart-container {
+            max-width: 400px; /* Зменшений розмір графіка */
+            margin: 0 auto;
+            padding: 10px;
+        }
+        .tab {
+            cursor: pointer;
+            padding: 10px 20px;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+        .tab:hover {
+            border-bottom: 2px solid #4299e1;
+        }
+        .tab.active {
+            border-bottom: 2px solid #4299e1;
+            font-weight: bold;
+            color: #4299e1;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Звіти</h1>
+            <div>
+                {% if current_user %}
+                    <span class="text-gray-600 mr-4">Вітаємо, {{ current_user.username }} ({{ current_user.role }})</span>
+                    <a href="{{ url_for('logout') }}" class="text-blue-500 hover:underline">Вийти</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="text-blue-500 hover:underline">Увійти</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow">
+            <div class="flex flex-wrap items-center gap-4">
+                <!-- Filter by Vehicle -->
+                <div class="relative">
+                    <i class="fas fa-car absolute left-3 top-3 text-gray-400"></i>
+                    <select id="vehicleFilter" class="border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Усі автомобілі</option>
+                        {% for vehicle in vehicles %}
+                            <option value="{{ vehicle.id }}">{{ vehicle.license_plate }} ({{ vehicle.manufacturer.name }} {{ vehicle.model.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Filter by Category -->
+                <div class="relative">
+                    <i class="fas fa-list-ul absolute left-3 top-3 text-gray-400"></i>
+                    <select id="categoryFilter" class="border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Усі категорії</option>
+                        {% for category, total in category_expenses %}
+                            <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Filter by Date Range -->
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <i class="fas fa-calendar-alt absolute left-3 top-3 text-gray-400"></i>
+                        <input type="date" id="startDate" class="border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <span>—</span>
+                    <div class="relative">
+                        <i class="fas fa-calendar-alt absolute left-3 top-3 text-gray-400"></i>
+                        <input type="date" id="endDate" class="border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <!-- Export Button -->
+                <div>
+                    <button id="exportButton" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition">
+                        <i class="fas fa-download mr-2"></i>Експортувати в CSV
+                    </button>
+                </div>
+                <!-- Clear Filters Button -->
+                <div>
+                    <button id="clearFilters" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                        <i class="fas fa-times mr-2"></i>Очистити фільтри
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs for Different Reports -->
+        <div class="mb-6">
+            <div class="flex border-b">
+                <div class="tab active" data-tab="categoryChart">Витрати за категоріями</div>
+                <div class="tab" data-tab="timeChart">Витрати у часі</div>
+                <div class="tab" data-tab="vehicleChart">Витрати по автомобілях</div>
+            </div>
+            <div class="mt-4">
+                <!-- Category Expenses Chart -->
+                <div id="categoryChart" class="tab-content active">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Витрати за категоріями</h2>
+                    <div class="chart-container">
+                        <canvas id="expenseCategoryChart"></canvas>
+                    </div>
+                </div>
+                <!-- Expenses Over Time Chart -->
+                <div id="timeChart" class="tab-content">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Витрати у часі</h2>
+                    <div class="chart-container">
+                        <canvas id="expenseTimeChart"></canvas>
+                    </div>
+                </div>
+                <!-- Expenses by Vehicle Chart -->
+                <div id="vehicleChart" class="tab-content">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Витрати по автомобілях</h2>
+                    <div class="chart-container">
+                        <canvas id="expenseVehicleChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expenses Table -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Детальні витрати</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border rounded-lg">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold sortable" data-sort="vehicle">
+                                Автомобіль <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold sortable" data-sort="category">
+                                Категорія <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold sortable" data-sort="amount">
+                                Сума (грн) <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold sortable" data-sort="date">
+                                Дата <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold">Примітка</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesTable">
+                        {% for expense in expenses %}
+                            <tr class="table-row" data-vehicle-id="{{ expense.vehicle_id }}" data-date="{{ expense.date.strftime('%Y-%m-%d') }}">
+                                <td class="py-2 px-4 border-b">{{ expense.expense_vehicle.license_plate }} ({{ expense.expense_vehicle.manufacturer.name }} {{ expense.expense_vehicle.model.name }})</td>
+                                <td class="py-2 px-4 border-b">{{ expense.category }}</td>
+                                <td class="py-2 px-4 border-b">{{ expense.amount }}</td>
+                                <td class="py-2 px-4 border-b">{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                                <td class="py-2 px-4 border-b">{{ expense.note or '' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Summary Table -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Загальні витрати по автомобілях</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border rounded-lg">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold">Автомобіль</th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold">Загальні витрати (грн)</th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold">Кількість ТО</th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold">Середній пробіг ТО (км)</th>
+                            <th class="py-3 px-4 border-b text-left text-gray-700 font-semibold">Прогнозовані витрати (грн)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in vehicles %}
+                            <tr class="table-row">
+                                <td class="py-2 px-4 border-b">{{ vehicle.license_plate }} ({{ vehicle.manufacturer.name }} {{ vehicle.model.name }})</td>
+                                <td class="py-2 px-4 border-b">
+                                    {% set total_expense = (vehicle.expenses | sum(attribute='amount')) %}
+                                    {{ total_expense | round(2) }}
+                                </td>
+                                <td class="py-2 px-4 border-b">{{ maintenance_stats[vehicle.id]['count'] }}</td>
+                                <td class="py-2 px-4 border-b">{{ maintenance_stats[vehicle.id]['average_mileage'] | round(2) }}</td>
+                                <td class="py-2 px-4 border-b">{{ predicted_expenses[vehicle.id] }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="text-center mt-6">
+            <a href="{{ url_for('index') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">
+                <i class="fas fa-arrow-left mr-2"></i>Повернутися до списку транспортних засобів
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Prepare Data for Charts
+        const expenses = [
+            {% for expense in expenses %}
+                {
+                    vehicleId: '{{ expense.vehicle_id }}',
+                    vehicleName: '{{ expense.expense_vehicle.license_plate }} ({{ expense.expense_vehicle.manufacturer.name }} {{ expense.expense_vehicle.model.name }})',
+                    category: '{{ expense.category }}',
+                    amount: {{ expense.amount }},
+                    date: '{{ expense.date.strftime('%Y-%m-%d') }}'
+                },
+            {% endfor %}
+        ];
+
+        // Chart 1: Expenses by Category (Pie Chart)
+        const categoryChartCtx = document.getElementById('expenseCategoryChart').getContext('2d');
+        const categoryData = {
+            labels: [{% for category, total in category_expenses %}'{{ category }}',{% endfor %}],
+            datasets: [{
+                label: 'Витрати (грн)',
+                data: [{% for category, total in category_expenses %}{{ total }},{% endfor %}],
+                backgroundColor: [
+                    '#48bb78', '#4299e1', '#f56565', '#ecc94b', '#9f7aea',
+                    '#ed8936', '#f6ad55', '#68d391', '#4fd1c5', '#fc8181'
+                ],
+                borderWidth: 1
+            }]
+        };
+        const categoryChart = new Chart(categoryChartCtx, {
+            type: 'pie',
+            data: categoryData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                return `${label}: ${value} грн`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Chart 2: Expenses Over Time (Line Chart)
+        const timeChartCtx = document.getElementById('expenseTimeChart').getContext('2d');
+        const dates = [...new Set(expenses.map(e => e.date))].sort();
+        const timeData = {
+            labels: dates,
+            datasets: [{
+                label: 'Витрати (грн)',
+                data: dates.map(date => {
+                    return expenses.filter(e => e.date === date).reduce((sum, e) => sum + e.amount, 0);
+                }),
+                borderColor: '#4299e1',
+                backgroundColor: 'rgba(66, 153, 225, 0.2)',
+                fill: true,
+                tension: 0.3
+            }]
+        };
+        const timeChart = new Chart(timeChartCtx, {
+            type: 'line',
+            data: timeData,
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Дата' } },
+                    y: { title: { display: true, text: 'Сума (грн)' } }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw || 0;
+                                return `Витрати: ${value} грн`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Chart 3: Expenses by Vehicle (Bar Chart)
+        const vehicleChartCtx = document.getElementById('expenseVehicleChart').getContext('2d');
+        const vehicleData = {
+            labels: [{% for vehicle in vehicles %}'{{ vehicle.license_plate }} ({{ vehicle.manufacturer.name }} {{ vehicle.model.name }})',{% endfor %}],
+            datasets: [{
+                label: 'Витрати (грн)',
+                data: [{% for vehicle in vehicles %}
+                    {{ (vehicle.expenses | sum(attribute='amount')) | round(2) }},
+                {% endfor %}],
+                backgroundColor: '#48bb78',
+                borderColor: '#48bb78',
+                borderWidth: 1
+            }]
+        };
+        const vehicleChart = new Chart(vehicleChartCtx, {
+            type: 'bar',
+            data: vehicleData,
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Автомобіль' } },
+                    y: { title: { display: true, text: 'Сума (грн)' } }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw || 0;
+                                return `Витрати: ${value} грн`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Tab Switching
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById(this.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Filter and Sort Functionality
+        const vehicleFilter = document.getElementById('vehicleFilter');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const expensesTable = document.getElementById('expensesTable');
+        const rows = Array.from(expensesTable.getElementsByTagName('tr'));
+        const sortHeaders = document.querySelectorAll('.sortable');
+        let sortDirection = {};
+
+        function filterExpenses() {
+            const selectedVehicle = vehicleFilter.value;
+            const selectedCategory = categoryFilter.value;
+            const startDate = startDateInput.value ? new Date(startDateInput.value) : null;
+            const endDate = endDateInput.value ? new Date(endDateInput.value) : null;
+
+            // Update table
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const vehicleId = row.dataset.vehicleId;
+                const category = row.cells[1].textContent;
+                const date = new Date(row.dataset.date);
+
+                const matchesVehicle = selectedVehicle === '' || vehicleId === selectedVehicle;
+                const matchesCategory = selectedCategory === '' || category === selectedCategory;
+                const matchesDate = (!startDate || date >= startDate) && (!endDate || date <= new Date(endDateInput.value + 'T23:59:59'));
+
+                if (matchesVehicle && matchesCategory && matchesDate) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+
+            // Update charts
+            const filteredExpenses = expenses.filter(e => {
+                const date = new Date(e.date);
+                return (selectedVehicle === '' || e.vehicleId === selectedVehicle) &&
+                       (selectedCategory === '' || e.category === selectedCategory) &&
+                       (!startDate || date >= startDate) &&
+                       (!endDate || date <= new Date(endDateInput.value + 'T23:59:59'));
+            });
+
+            // Update Category Chart
+            const categoryTotals = {};
+            filteredExpenses.forEach(e => {
+                categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+            });
+            categoryChart.data.labels = Object.keys(categoryTotals);
+            categoryChart.data.datasets[0].data = Object.values(categoryTotals);
+            categoryChart.update();
+
+            // Update Time Chart
+            timeChart.data.labels = [...new Set(filteredExpenses.map(e => e.date))].sort();
+            timeChart.data.datasets[0].data = timeChart.data.labels.map(date => {
+                return filteredExpenses.filter(e => e.date === date).reduce((sum, e) => sum + e.amount, 0);
+            });
+            timeChart.update();
+
+            // Update Vehicle Chart
+            const vehicleTotals = {};
+            filteredExpenses.forEach(e => {
+                vehicleTotals[e.vehicleName] = (vehicleTotals[e.vehicleName] || 0) + e.amount;
+            });
+            vehicleChart.data.labels = Object.keys(vehicleTotals);
+            vehicleChart.data.datasets[0].data = Object.values(vehicleTotals);
+            vehicleChart.update();
+        }
+
+        // Event Listeners for Filters
+        vehicleFilter.addEventListener('change', filterExpenses);
+        categoryFilter.addEventListener('change', filterExpenses);
+        startDateInput.addEventListener('change', filterExpenses);
+        endDateInput.addEventListener('change', filterExpenses);
+
+        // Clear Filters
+        document.getElementById('clearFilters').addEventListener('click', function() {
+            vehicleFilter.value = '';
+            categoryFilter.value = '';
+            startDateInput.value = '';
+            endDateInput.value = '';
+            filterExpenses();
+        });
+
+        // Sorting Functionality
+        sortHeaders.forEach(header => {
+            header.addEventListener('click', function() {
+                const sortKey = this.dataset.sort;
+                const isAscending = sortDirection[sortKey] !== 'asc';
+                sortDirection[sortKey] = isAscending ? 'asc' : 'desc';
+
+                // Update sort icons
+                sortHeaders.forEach(h => {
+                    const icon = h.querySelector('.sort-icon');
+                    icon.classList.remove('fa-sort-up', 'fa-sort-down', 'active');
+                    icon.classList.add('fa-sort');
+                });
+                const icon = this.querySelector('.sort-icon');
+                icon.classList.add('active', isAscending ? 'fa-sort-up' : 'fa-sort-down');
+
+                // Sort rows
+                const sortedRows = Array.from(rows).sort((a, b) => {
+                    let aValue = a.cells[sortKey === 'vehicle' ? 0 : sortKey === 'category' ? 1 : sortKey === 'amount' ? 2 : 3].textContent;
+                    let bValue = b.cells[sortKey === 'vehicle' ? 0 : sortKey === 'category' ? 1 : sortKey === 'amount' ? 2 : 3].textContent;
+
+                    if (sortKey === 'date') {
+                        aValue = new Date(aValue);
+                        bValue = new Date(bValue);
+                    } else if (sortKey === 'amount') {
+                        aValue = parseFloat(aValue);
+                        bValue = parseFloat(bValue);
+                    }
+
+                    if (isAscending) {
+                        return aValue > bValue ? 1 : -1;
+                    } else {
+                        return aValue < bValue ? 1 : -1;
+                    }
+                });
+
+                // Re-append sorted rows
+                expensesTable.innerHTML = '';
+                sortedRows.forEach(row => expensesTable.appendChild(row));
+            });
+        });
+
+        // Export to CSV Functionality
+        document.getElementById('exportButton').addEventListener('click', function() {
+            const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+            if (visibleRows.length === 0) {
+                alert('Немає даних для експорту!');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Автомобіль,Категорія,Сума (грн),Дата,Примітка\n";
+            visibleRows.forEach(row => {
+                const vehicle = row.cells[0].textContent;
+                const category = row.cells[1].textContent;
+                const amount = row.cells[2].textContent;
+                const date = row.cells[3].textContent;
+                const note = row.cells[4].textContent.replace(/,/g, ' ');
+                csvContent += `"${vehicle}","${category}","${amount}","${date}","${note}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', 'expense_report.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>

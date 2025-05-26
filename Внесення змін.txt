@@ -1,0 +1,10 @@
+1.
+
+
+flask db migrate -m "Added new column"
+
+
+
+2.
+
+flask db upgrade

@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Автомобіль {{ vehicle.license_plate }} - FleetMaster 3000</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .close {
+            color: #888;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .close:hover,
+        .close:focus {
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #fuelFields, #editFuelFields {
+            display: none;
+        }
+        .tab {
+            display: none;
+        }
+        .tab.active {
+            display: block;
+        }
+        .error-message {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-center text-gray-800">Автомобіль {{ vehicle.license_plate }}</h1>
+            <div>
+                {% if current_user %}
+                    <span class="text-gray-600 mr-4">Вітаємо, {{ current_user.username }} ({{ current_user.role }})</span>
+                    <a href="{{ url_for('logout') }}" class="text-blue-500 hover:underline">Вийти</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="text-blue-500 hover:underline">Увійти</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div class="flex flex-col md:flex-row">
+                <div class="md:w-1/3 mb-4 md:mb-0">
+                    {% if vehicle.photo %}
+                        <img src="{{ url_for('static', filename=vehicle.photo) }}" alt="Фото автомобіля" class="w-full h-48 object-cover rounded-lg">
+                    {% else %}
+                        <div class="w-full h-48 bg-gray-200 flex items-center justify-center rounded-lg">
+                            <span class="text-gray-500">Фото відсутнє</span>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="md:w-2/3 md:pl-6">
+                    <p><strong>Виробник:</strong> {{ vehicle.manufacturer.name }}</p>
+                    <p><strong>Модель:</strong> {{ vehicle.model.name }}</p>
+                    <p><strong>Рік:</strong> {{ vehicle.year or 'Невідомо' }}</p>
+                    <p><strong>VIN:</strong> {{ vehicle.vin or 'Невідомо' }}</p>
+                    <p><strong>Пробіг:</strong> {{ vehicle.mileage }} км</p>
+                    <p><strong>Прогнозовані витрати:</strong> {{ predicted_expense }} грн</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex border-b">
+                <button class="tab-button py-2 px-4 border-b-2 border-transparent text-gray-600 hover:border-blue-500 focus:outline-none active" onclick="openTab(event, 'expenses')">Витрати</button>
+                <button class="tab-button py-2 px-4 border-b-2 border-transparent text-gray-600 hover:border-blue-500 focus:outline-none" onclick="openTab(event, 'maintenances')">ТО</button>
+                <button class="tab-button py-2 px-4 border-b-2 border-transparent text-gray-600 hover:border-blue-500 focus:outline-none" onclick="openTab(event, 'insurances')">Страховки</button>
+            </div>
+
+            <div id="expenses" class="tab active">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Витрати</h2>
+                    <button onclick="openAddExpenseModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Додати витрату</button>
+                </div>
+                {% if vehicle.expenses %}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border rounded-lg">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b text-left">Категорія</th>
+                                    <th class="py-2 px-4 border-b text-left">Сума</th>
+                                    <th class="py-2 px-4 border-b text-left">Дата</th>
+                                    <th class="py-2 px-4 border-b text-left">Примітка</th>
+                                    <th class="py-2 px-4 border-b text-left">Чек</th>
+                                    <th class="py-2 px-4 border-b text-left">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for expense in vehicle.expenses %}
+                                    {% if not expense.is_archived %}
+                                        <tr>
+                                            <td class="py-2 px-4 border-b">{{ expense.category }}</td>
+                                            <td class="py-2 px-4 border-b">{{ expense.amount }} грн</td>
+                                            <td class="py-2 px-4 border-b">{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                                            <td class="py-2 px-4 border-b">{{ expense.note or '' }}</td>
+                                            <td class="py-2 px-4 border-b">
+                                                {% if expense.receipt_photo %}
+                                                    <a href="{{ url_for('static', filename=expense.receipt_photo) }}" target="_blank" class="text-blue-500 hover:underline">Переглянути</a>
+                                                {% else %}
+                                                    Немає
+                                                {% endif %}
+                                            </td>
+                                            <td class="py-2 px-4 border-b">
+                                                <button onclick="openEditExpenseModal({{ expense.id }}, '{{ expense.category }}', {{ expense.amount }}, '{{ expense.note or '' }}', {{ expense.fuel_volume or 0 }}, {{ expense.fuel_price_per_liter or 0 }})" class="text-blue-500 hover:underline mr-2">Редагувати</button>
+                                                <form action="{{ url_for('archive_expense', expense_id=expense.id) }}" method="post" class="inline">
+                                                    <button type="submit" class="text-yellow-500 hover:underline mr-2">Архівувати</button>
+                                                </form>
+                                                <form action="{{ url_for('delete_expense', expense_id=expense.id) }}" method="post" class="inline">
+                                                    <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити цю витрату?')" class="text-red-500 hover:underline">Видалити</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-gray-600">Витрати відсутні.</p>
+                {% endif %}
+            </div>
+
+            <div id="maintenances" class="tab">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Технічне обслуговування</h2>
+                    <button onclick="openAddMaintenanceModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Додати ТО</button>
+                </div>
+                {% if vehicle.maintenances %}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border rounded-lg">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b text-left">Дата</th>
+                                    <th class="py-2 px-4 border-b text-left">Пробіг</th>
+                                    <th class="py-2 px-4 border-b text-left">Тип</th>
+                                    <th class="py-2 px-4 border-b text-left">Примітка</th>
+                                    <th class="py-2 px-4 border-b text-left">Наступне ТО</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for maintenance in vehicle.maintenances %}
+                                    <tr>
+                                        <td class="py-2 px-4 border-b">{{ maintenance.date.strftime('%Y-%m-%d') }}</td>
+                                        <td class="py-2 px-4 border-b">{{ maintenance.mileage }} км</td>
+                                        <td class="py-2 px-4 border-b">{{ maintenance.type }}</td>
+                                        <td class="py-2 px-4 border-b">{{ maintenance.note or '' }}</td>
+                                        <td class="py-2 px-4 border-b">{{ maintenance.next_mileage }} км</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-gray-600">ТО відсутні.</p>
+                {% endif %}
+            </div>
+
+            <div id="insurances" class="tab">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Страховки</h2>
+                    <button onclick="openAddInsuranceModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Додати страховку</button>
+                </div>
+                {% if vehicle.insurances %}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border rounded-lg">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b text-left">Компанія</th>
+                                    <th class="py-2 px-4 border-b text-left">Початок</th>
+                                    <th class="py-2 px-4 border-b text-left">Кінець</th>
+                                    <th class="py-2 px-4 border-b text-left">Сума</th>
+                                    <th class="py-2 px-4 border-b text-left">Примітка</th>
+                                    <th class="py-2 px-4 border-b text-left">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for insurance in vehicle.insurances %}
+                                    <tr>
+                                        <td class="py-2 px-4 border-b">{{ insurance.company }}</td>
+                                        <td class="py-2 px-4 border-b">{{ insurance.start_date.strftime('%Y-%m-%d') }}</td>
+                                        <td class="py-2 px-4 border-b">{{ insurance.end_date.strftime('%Y-%m-%d') }}</td>
+                                        <td class="py-2 px-4 border-b">{{ insurance.amount }} грн</td>
+                                        <td class="py-2 px-4 border-b">{{ insurance.note or '' }}</td>
+                                        <td class="py-2 px-4 border-b">
+                                            <form action="{{ url_for('delete_insurance', insurance_id=insurance.id) }}" method="post" class="inline">
+                                                <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити цю страховку?')" class="text-red-500 hover:underline">Видалити</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-gray-600">Страховки відсутні.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="{{ url_for('index') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">Повернутися до списку</a>
+        </div>
+    </div>
+
+    <!-- Модальне вікно для додавання витрати -->
+    <div id="addExpenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddExpenseModal()">×</span>
+            <h2 class="text-xl font-semibold mb-6 text-gray-800">Додати витрату</h2>
+            <form action="{{ url_for('add_expense', vehicle_id=vehicle.id) }}" method="post" enctype="multipart/form-data">
+                <div class="mb-5">
+                    <label for="category" class="block text-gray-700 font-medium mb-1">Категорія:</label>
+                    <select id="category" name="category" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" onchange="toggleFuelFields()">
+                        <option value="Паливо">Паливо</option>
+                        <option value="Ремонт">Ремонт</option>
+                        <option value="Техобслуговування">Техобслуговування</option>
+                        <option value="Страховка">Страховка</option>
+                        <option value="Інше">Інше</option>
+                    </select>
+                </div>
+                <div class="mb-5" id="fuelFields">
+                    <label for="fuel_volume" class="block text-gray-700 font-medium mb-1">Об'єм палива (літри):</label>
+                    <input type="number" step="0.01" min="0" id="fuel_volume" name="fuel_volume" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" oninput="calculateFuelAmount()">
+                    <label for="fuel_price_per_liter" class="block text-gray-700 font-medium mt-3 mb-1">Ціна за літр (грн):</label>
+                    <input type="number" step="0.01" min="0" id="fuel_price_per_liter" name="fuel_price_per_liter" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" oninput="calculateFuelAmount()">
+                </div>
+                <div class="mb-5">
+                    <label for="amount" class="block text-gray-700 font-medium mb-1">Сума (грн):</label>
+                    <input type="number" step="0.01" min="0.01" id="amount" name="amount" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="note" class="block text-gray-700 font-medium mb-1">Примітка:</label>
+                    <textarea id="note" name="note" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" rows="3"></textarea>
+                </div>
+                <div class="mb-5">
+                    <label for="receipt_photo" class="block text-gray-700 font-medium mb-1">Фото чека:</label>
+                    <input type="file" id="receipt_photo" name="receipt_photo" accept="image/*" class="w-full p-3 border rounded-lg">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Додати витрату</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальне вікно для редагування витрати -->
+    <div id="editExpenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditExpenseModal()">×</span>
+            <h2 class="text-xl font-semibold mb-6 text-gray-800">Редагувати витрату</h2>
+            <form id="editExpenseForm" method="post" enctype="multipart/form-data">
+                <div class="mb-5">
+                    <label for="edit_category" class="block text-gray-700 font-medium mb-1">Категорія:</label>
+                    <select id="edit_category" name="category" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" onchange="toggleEditFuelFields()">
+                        <option value="Паливо">Паливо</option>
+                        <option value="Ремонт">Ремонт</option>
+                        <option value="Техобслуговування">Техобслуговування</option>
+                        <option value="Страховка">Страховка</option>
+                        <option value="Інше">Інше</option>
+                    </select>
+                </div>
+                <div class="mb-5" id="editFuelFields">
+                    <label for="edit_fuel_volume" class="block text-gray-700 font-medium mb-1">Об'єм палива (літри):</label>
+                    <input type="number" step="0.01" min="0" id="edit_fuel_volume" name="fuel_volume" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" oninput="calculateEditFuelAmount()">
+                    <label for="edit_fuel_price_per_liter" class="block text-gray-700 font-medium mt-3 mb-1">Ціна за літр (грн):</label>
+                    <input type="number" step="0.01" min="0" id="edit_fuel_price_per_liter" name="fuel_price_per_liter" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" oninput="calculateEditFuelAmount()">
+                </div>
+                <div class="mb-5">
+                    <label for="edit_amount" class="block text-gray-700 font-medium mb-1">Сума (грн):</label>
+                    <input type="number" step="0.01" min="0.01" id="edit_amount" name="amount" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="edit_note" class="block text-gray-700 font-medium mb-1">Примітка:</label>
+                    <textarea id="edit_note" name="note" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" rows="3"></textarea>
+                </div>
+                <div class="mb-5">
+                    <label for="edit_receipt_photo" class="block text-gray-700 font-medium mb-1">Фото чека:</label>
+                    <input type="file" id="edit_receipt_photo" name="receipt_photo" accept="image/*" class="w-full p-3 border rounded-lg">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Зберегти зміни</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальне вікно для додавання ТО -->
+    <div id="addMaintenanceModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddMaintenanceModal()">×</span>
+            <h2 class="text-xl font-semibold mb-6 text-gray-800">Додати ТО</h2>
+            <form action="{{ url_for('add_maintenance', vehicle_id=vehicle.id) }}" method="post">
+                <div class="mb-5">
+                    <label for="mileage" class="block text-gray-700 font-medium mb-1">Пробіг (км):</label>
+                    <input type="number" min="0" id="mileage" name="mileage" value="{{ vehicle.mileage }}" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="type" class="block text-gray-700 font-medium mb-1">Тип ТО:</label>
+                    <select id="type" name="type" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        {% for maintenance_type in maintenance_types %}
+                            <option value="{{ maintenance_type }}">{{ maintenance_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-5">
+                    <label for="note" class="block text-gray-700 font-medium mb-1">Примітка:</label>
+                    <textarea id="note" name="note" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" rows="3"></textarea>
+                </div>
+                <div class="mb-5">
+                    <label for="next_mileage" class="block text-gray-700 font-medium mb-1">Наступне ТО (км):</label>
+                    <input type="number" min="1" id="next_mileage" name="next_mileage" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <p id="next_mileage_error" class="error-message">Наступне ТО має бути більшим за поточний пробіг!</p>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Додати ТО</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальне вікно для додавання страховки -->
+    <div id="addInsuranceModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddInsuranceModal()">×</span>
+            <h2 class="text-xl font-semibold mb-6 text-gray-800">Додати страховку</h2>
+            <form action="{{ url_for('add_insurance', vehicle_id=vehicle.id) }}" method="post" onsubmit="return validateInsuranceDates()">
+                <div class="mb-5">
+                    <label for="company" class="block text-gray-700 font-medium mb-1">Компанія:</label>
+                    <input type="text" id="company" name="company" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="start_date" class="block text-gray-700 font-medium mb-1">Дата початку:</label>
+                    <input type="date" id="start_date" name="start_date" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" onchange="validateInsuranceDates()">
+                </div>
+                <div class="mb-5">
+                    <label for="end_date" class="block text-gray-700 font-medium mb-1">Дата закінчення:</label>
+                    <input type="date" id="end_date" name="end_date" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" onchange="validateInsuranceDates()">
+                    <p id="date_error" class="error-message">Дата закінчення має бути пізніше дати початку!</p>
+                </div>
+                <div class="mb-5">
+                    <label for="amount" class="block text-gray-700 font-medium mb-1">Сума (грн):</label>
+                    <input type="number" step="0.01" min="0.01" id="amount" name="amount" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="note" class="block text-gray-700 font-medium mb-1">Примітка:</label>
+                    <textarea id="note" name="note" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" rows="3"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Додати страховку</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            const tabButtons = document.getElementsByClassName("tab-button");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("border-blue-500");
+                tabButtons[i].classList.add("border-transparent");
+            }
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("border-blue-500");
+            evt.currentTarget.classList.remove("border-transparent");
+        }
+
+        function openAddExpenseModal() {
+            document.getElementById("addExpenseModal").style.display = "block";
+            toggleFuelFields();
+        }
+
+        function closeAddExpenseModal() {
+            document.getElementById("addExpenseModal").style.display = "none";
+            document.getElementById("category").value = "Паливо";
+            document.getElementById("amount").value = "";
+            document.getElementById("note").value = "";
+            document.getElementById("receipt_photo").value = "";
+            document.getElementById("fuel_volume").value = "";
+            document.getElementById("fuel_price_per_liter").value = "";
+            toggleFuelFields();
+        }
+
+        function openEditExpenseModal(id, category, amount, note, fuel_volume, fuel_price_per_liter) {
+            const modal = document.getElementById("editExpenseModal");
+            const form = document.getElementById("editExpenseForm");
+            form.action = `/edit_expense/${id}`;
+            document.getElementById("edit_category").value = category;
+            document.getElementById("edit_amount").value = amount;
+            document.getElementById("edit_note").value = note;
+            document.getElementById("edit_fuel_volume").value = fuel_volume;
+            document.getElementById("edit_fuel_price_per_liter").value = fuel_price_per_liter;
+            toggleEditFuelFields();
+            if (category === "Паливо") {
+                calculateEditFuelAmount();
+            }
+            modal.style.display = "block";
+        }
+
+        function closeEditExpenseModal() {
+            document.getElementById("editExpenseModal").style.display = "none";
+        }
+
+        function openAddMaintenanceModal() {
+            document.getElementById("addMaintenanceModal").style.display = "block";
+        }
+
+        function closeAddMaintenanceModal() {
+            document.getElementById("addMaintenanceModal").style.display = "none";
+            document.getElementById("mileage").value = {{ vehicle.mileage }};
+            document.getElementById("type").value = "{{ maintenance_types[0] }}";
+            document.getElementById("note").value = "";
+            document.getElementById("next_mileage").value = "";
+            document.getElementById("next_mileage_error").style.display = "none";
+        }
+
+        function openAddInsuranceModal() {
+            document.getElementById("addInsuranceModal").style.display = "block";
+        }
+
+        function closeAddInsuranceModal() {
+            document.getElementById("addInsuranceModal").style.display = "none";
+            document.getElementById("company").value = "";
+            document.getElementById("start_date").value = "";
+            document.getElementById("end_date").value = "";
+            document.getElementById("amount").value = "";
+            document.getElementById("note").value = "";
+            document.getElementById("date_error").style.display = "none";
+        }
+
+        function toggleFuelFields() {
+            const category = document.getElementById("category").value;
+            const fuelFields = document.getElementById("fuelFields");
+            const amountField = document.getElementById("amount");
+            if (category === "Паливо") {
+                fuelFields.style.display = "block";
+                amountField.readOnly = true;
+                calculateFuelAmount();
+            } else {
+                fuelFields.style.display = "none";
+                amountField.readOnly = false;
+                amountField.value = "";
+            }
+        }
+
+        function toggleEditFuelFields() {
+            const category = document.getElementById("edit_category").value;
+            const fuelFields = document.getElementById("editFuelFields");
+            const amountField = document.getElementById("edit_amount");
+            if (category === "Паливо") {
+                fuelFields.style.display = "block";
+                amountField.readOnly = true;
+                calculateEditFuelAmount();
+            } else {
+                fuelFields.style.display = "none";
+                amountField.readOnly = false;
+            }
+        }
+
+        function calculateFuelAmount() {
+            const fuelVolume = parseFloat(document.getElementById("fuel_volume").value) || 0;
+            const fuelPricePerLiter = parseFloat(document.getElementById("fuel_price_per_liter").value) || 0;
+            const amount = fuelVolume * fuelPricePerLiter;
+            document.getElementById("amount").value = amount.toFixed(2);
+        }
+
+        function calculateEditFuelAmount() {
+            const fuelVolume = parseFloat(document.getElementById("edit_fuel_volume").value) || 0;
+            const fuelPricePerLiter = parseFloat(document.getElementById("edit_fuel_price_per_liter").value) || 0;
+            const amount = fuelVolume * fuelPricePerLiter;
+            document.getElementById("edit_amount").value = amount.toFixed(2);
+        }
+
+        function validateInsuranceDates() {
+            const startDate = new Date(document.getElementById("start_date").value);
+            const endDate = new Date(document.getElementById("end_date").value);
+            const errorMessage = document.getElementById("date_error");
+            if (endDate <= startDate) {
+                errorMessage.style.display = "block";
+                return false;
+            }
+            errorMessage.style.display = "none";
+            return true;
+        }
+
+        window.onclick = function(event) {
+            const addExpenseModal = document.getElementById("addExpenseModal");
+            const editExpenseModal = document.getElementById("editExpenseModal");
+            const addMaintenanceModal = document.getElementById("addMaintenanceModal");
+            const addInsuranceModal = document.getElementById("addInsuranceModal");
+            if (event.target == addExpenseModal) {
+                closeAddExpenseModal();
+            }
+            if (event.target == editExpenseModal) {
+                closeEditExpenseModal();
+            }
+            if (event.target == addMaintenanceModal) {
+                closeAddMaintenanceModal();
+            }
+            if (event.target == addInsuranceModal) {
+                closeAddInsuranceModal();
+            }
+        };
+    </script>
+</body>
+</html>

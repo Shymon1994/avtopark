@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редагувати автомобіль - FleetMaster 3000</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        .error-message {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 4px;
+            display: none;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">FleetMaster 3000 - Редагувати автомобіль</h1>
+            <a href="{{ url_for('index') }}" class="text-blue-500 hover:underline">Повернутися до списку</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border-l-4 border-{{ 'green' if category == 'success' else 'red' }}-500 text-{{ 'green' if category == 'success' else 'red' }}-700 p-4 mb-2 rounded-r-lg">
+                            <p>{{ message }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-6 text-gray-800">Редагувати автомобіль</h2>
+            <form action="{{ url_for('edit_vehicle', vehicle_id=vehicle.id) }}" method="post" enctype="multipart/form-data">
+                <div class="mb-5">
+                    <label for="license_plate" class="block text-gray-700 font-medium mb-1">Номерний знак:</label>
+                    <input type="text" id="license_plate" name="license_plate" value="{{ vehicle.license_plate }}" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="manufacturer" class="block text-gray-700 font-medium mb-1">Виробник:</label>
+                    <select id="manufacturer" name="manufacturer" required class="w-full p-3 border rounded-lg select2">
+                        <option value="">Оберіть або введіть виробника</option>
+                        {% for manufacturer in manufacturers %}
+                            <option value="{{ manufacturer.id }}" {% if manufacturer.id == vehicle.manufacturer_id %}selected{% endif %}>{{ manufacturer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-5">
+                    <label for="model" class="block text-gray-700 font-medium mb-1">Модель:</label>
+                    <select id="model" name="model" required class="w-full p-3 border rounded-lg select2">
+                        <option value="">Оберіть або введіть модель</option>
+                        {% for model in vehicle.manufacturer.models %}
+                            <option value="{{ model.id }}" {% if model.id == vehicle.model_id %}selected{% endif %}>{{ model.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-5">
+                    <label for="year" class="block text-gray-700 font-medium mb-1">Рік випуску:</label>
+                    <input type="number" id="year" name="year" value="{{ vehicle.year or '' }}" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="vin" class="block text-gray-700 font-medium mb-1">VIN-код:</label>
+                    <input type="text" id="vin" name="vin" value="{{ vehicle.vin or '' }}" maxlength="17" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <p id="vin_error" class="error-message">VIN-код має бути 17 символів і складатися з букв та цифр!</p>
+                </div>
+                <div class="mb-5">
+                    <label for="mileage" class="block text-gray-700 font-medium mb-1">Пробіг (км):</label>
+                    <input type="number" id="mileage" name="mileage" value="{{ vehicle.mileage }}" min="0" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="mb-5">
+                    <label for="photo" class="block text-gray-700 font-medium mb-1">Фото автомобіля:</label>
+                    <input type="file" id="photo" name="photo" accept="image/*" class="w-full p-3 border rounded-lg">
+                    {% if vehicle.photo %}
+                        <p class="text-gray-600 text-sm mt-2">Поточне фото: <a href="{{ url_for('static', filename=vehicle.photo) }}" target="_blank">Переглянути</a></p>
+                    {% endif %}
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Зберегти зміни</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                tags: true,
+                placeholder: "Оберіть або введіть",
+                allowClear: true,
+                createTag: function(params) {
+                    return {
+                        id: params.term,
+                        text: params.term,
+                        newTag: true
+                    };
+                }
+            });
+
+            $('#manufacturer').on('select2:select', function(e) {
+                if (e.params.data.newTag) {
+                    addNewManufacturer(e.params.data.text);
+                }
+                updateModels();
+            });
+
+            $('#model').on('select2:select', function(e) {
+                if (e.params.data.newTag) {
+                    const manufacturerId = $('#manufacturer').val();
+                    if (manufacturerId) {
+                        addNewModel(e.params.data.text, manufacturerId);
+                    } else {
+                        alert('Спочатку оберіть виробника!');
+                        $('#model').val(null).trigger('change');
+                    }
+                }
+            });
+
+            document.getElementById('vin').addEventListener('input', function() {
+                const vin = this.value;
+                const vinError = document.getElementById('vin_error');
+                if (vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+                    vinError.style.display = 'block';
+                } else {
+                    vinError.style.display = 'none';
+                }
+            });
+
+            updateModels();
+        });
+
+        function updateModels() {
+            const manufacturerId = $('#manufacturer').val();
+            const modelSelect = $('#model');
+            const selectedModelId = modelSelect.val();
+            modelSelect.val(null).trigger('change');
+            modelSelect.find('option:not(:first)').remove();
+            if (manufacturerId && !isNaN(manufacturerId)) {
+                fetch(`/get_models/${manufacturerId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(model => {
+                            const option = new Option(model.name, model.id);
+                            modelSelect.append(option);
+                            if (model.id == selectedModelId) {
+                                modelSelect.val(model.id).trigger('change');
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Помилка при отриманні моделей:', error));
+            }
+        }
+
+        function addNewManufacturer(name) {
+            return fetch('/add_manufacturer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                const option = new Option(data.name, data.id);
+                $('#manufacturer').append(option);
+                $('#manufacturer').val(data.id).trigger('change');
+            });
+        }
+
+        function addNewModel(name, manufacturerId) {
+            return fetch('/add_model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, manufacturer_id: manufacturerId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                const option = new Option(data.name, data.id);
+                $('#model').append(option);
+                $('#model').val(data.id).trigger('change');
+            });
+        }
+    </script>
+</body>
+</html>

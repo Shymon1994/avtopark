@@ -1,0 +1,29 @@
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 128-799-404
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:03:17] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:03:17] "GET /static/uploads/20250416_130046_Castrol.png HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:03:21] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:03:21] "[36mGET /static/uploads/20250416_130046_Castrol.png HTTP/1.1[0m" 304 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:06] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:06] "GET /static/uploads/20250416_130046_Castrol.png HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:07] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:07] "[36mGET /static/uploads/20250416_130046_Castrol.png HTTP/1.1[0m" 304 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:07] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:09] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:09] "[36mGET /static/uploads/20250416_130046_Castrol.png HTTP/1.1[0m" 304 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:24] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:24] "GET /static/uploads/20250416_130046_Castrol.png HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:10:25] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:11:09] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:11:09] "GET /static/uploads/20250416_130046_Castrol.png HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:11:11] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug: * Detected change in 'C:\\Users\\zeus\\Downloads\\Proekt\\Avtopark.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 128-799-404
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:23:39] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Apr/2025 13:23:39] "[36mGET /static/uploads/20250416_130046_Castrol.png HTTP/1.1[0m" 304 -
