@@ -12,6 +12,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import Color
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
+
+load_dotenv()
+cloudinary.config(secure=True)  # Бере CLOUDINARY_URL із .env
+
 
 # Налаштування логування
 logging.basicConfig(filename='fleet.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -465,8 +472,9 @@ def add_vehicle():
                 filename = secure_filename(file.filename)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{timestamp}_{filename}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                photo_path = os.path.join('uploads', filename).replace('\\', '/')
+                upload_result = cloudinary.uploader.upload(file)
+                photo_path = upload_result['secure_url']
+
 
         new_vehicle = Vehicle(
             license_plate=license_plate,
@@ -499,7 +507,7 @@ def add_vehicle():
 @login_required
 @admin_required
 def edit_vehicle(vehicle_id):
-    vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)  # Use Session.get
+    vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
     if request.method == 'POST':
         try:
             old_license_plate = vehicle.license_plate
@@ -518,19 +526,11 @@ def edit_vehicle(vehicle_id):
             if 'photo' in request.files:
                 file = request.files['photo']
                 if file and allowed_file(file.filename):
-                    if vehicle.photo:
-                        old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(vehicle.photo))
-                        if os.path.exists(old_file_path):
-                            os.remove(old_file_path)
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"{timestamp}_{filename}"
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                    vehicle.photo = os.path.join('uploads', filename).replace('\\', '/')
+                    upload_result = cloudinary.uploader.upload(file)
+                    vehicle.photo = upload_result['secure_url']
 
             db.session.commit()
 
-            # Логування події
             event = EventLog(
                 user_id=session['user_id'],
                 action="Редагування автомобіля",
@@ -541,10 +541,11 @@ def edit_vehicle(vehicle_id):
 
             logging.info(f"Відредаговано автомобіль {vehicle.license_plate} користувачем {session['username']} (IP: {request.remote_addr})")
             return redirect(url_for('index'))
+
         except Exception as e:
             logging.error(f"Помилка при редагуванні автомобіля {vehicle_id}: {str(e)}")
             return f"Помилка при редагуванні автомобіля: {str(e)}", 500
-    
+
     manufacturers = Manufacturer.query.all()
     return render_template('edit_vehicle.html', vehicle=vehicle, manufacturers=manufacturers)
 
