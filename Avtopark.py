@@ -680,9 +680,10 @@ def add_expense(vehicle_id):
 @login_required
 def edit_expense(expense_id):
     try:
-        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)  # Use Session.get
+        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)
         old_category = expense.category
         old_amount = expense.amount
+
         expense.category = request.form['category'].strip()
         amount_str = request.form['amount'].strip()
         expense.note = request.form['note'].strip()
@@ -707,21 +708,17 @@ def edit_expense(expense_id):
                 amount = float(amount_str)
                 if amount <= 0:
                     return "Помилка: Сума має бути більшою за 0!", 400
+                expense.amount = amount
+                expense.fuel_volume = None
+                expense.fuel_price_per_liter = None
             except ValueError:
                 return "Помилка: Сума має бути числом!", 400
 
         if 'receipt_photo' in request.files:
             file = request.files['receipt_photo']
             if file and allowed_file(file.filename):
-                if expense.receipt_photo:
-                    old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(expense.receipt_photo))
-                    if os.path.exists(old_file_path):
-                        os.remove(old_file_path)
-                filename = secure_filename(file.filename)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{timestamp}_{filename}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                expense.receipt_photo = os.path.join('uploads', filename).replace('\\', '/')
+                upload_result = cloudinary.uploader.upload(file)
+                expense.receipt_photo = upload_result['secure_url']
 
         db.session.commit()
 
@@ -735,9 +732,11 @@ def edit_expense(expense_id):
 
         logging.info(f"Відредаговано витрату ({expense.category}, {expense.amount} грн) для автомобіля {expense.vehicle_id} користувачем {session['username']} (IP: {request.remote_addr})")
         return redirect(url_for('view_vehicle', vehicle_id=expense.vehicle_id))
+
     except Exception as e:
         logging.error(f"Помилка при редагуванні витрати {expense_id}: {str(e)}")
         return f"Помилка при редагуванні витрати: {str(e)}", 500
+
 
 @app.route('/archive_expense/<int:expense_id>', methods=['POST'])
 @login_required
