@@ -26,7 +26,7 @@ import os
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "fallback-key")  # Зміни на унікальний ключ у продакшені
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, "instance", "fleet.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'Uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 
 # Переконаємося, що папка для завантажень існує
@@ -466,7 +466,7 @@ def add_vehicle():
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{timestamp}_{filename}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                photo_path = os.path.join('Uploads', filename).replace('\\', '/')
+                photo_path = os.path.join('uploads', filename).replace('\\', '/')
 
         new_vehicle = Vehicle(
             license_plate=license_plate,
@@ -526,7 +526,7 @@ def edit_vehicle(vehicle_id):
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"{timestamp}_{filename}"
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                    vehicle.photo = os.path.join('Uploads', filename).replace('\\', '/')
+                    vehicle.photo = os.path.join('uploads', filename).replace('\\', '/')
 
             db.session.commit()
 
@@ -553,16 +553,30 @@ def edit_vehicle(vehicle_id):
 @admin_required
 def delete_vehicle(vehicle_id):
     try:
-        vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)  # Use Session.get
-        if vehicle.photo:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(vehicle.photo))
-            if os.path.exists(file_path):
-                os.remove(file_path)
+        vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
         license_plate = vehicle.license_plate
+
+        # Видалення фото, якщо існує
+        if vehicle.photo:
+            # тільки відносний шлях uploads/файл
+            filename = os.path.basename(vehicle.photo)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+            # безпека: перевіряємо, що файл лежить у межах UPLOAD_FOLDER
+            if os.path.commonprefix([os.path.realpath(file_path), os.path.realpath(app.config['UPLOAD_FOLDER'])]) == os.path.realpath(app.config['UPLOAD_FOLDER']):
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception as file_err:
+                    logging.warning(f"Не вдалося видалити фото {file_path}: {file_err}")
+            else:
+                logging.warning(f"Небезпечний шлях: {file_path} не в межах UPLOAD_FOLDER")
+
+        # Видалення об'єкта з БД
         db.session.delete(vehicle)
         db.session.commit()
 
-        # Логування події
+        # Логування
         event = EventLog(
             user_id=session['user_id'],
             action="Видалення автомобіля",
@@ -573,6 +587,7 @@ def delete_vehicle(vehicle_id):
 
         logging.info(f"Видалено автомобіль {license_plate} користувачем {session['username']} (IP: {request.remote_addr})")
         return redirect(url_for('index'))
+
     except Exception as e:
         logging.error(f"Помилка при видаленні автомобіля {vehicle_id}: {str(e)}")
         return f"Помилка при видаленні автомобіля: {str(e)}", 500
@@ -631,7 +646,7 @@ def add_expense(vehicle_id):
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{timestamp}_{filename}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                receipt_photo_path = os.path.join('Uploads', filename).replace('\\', '/')
+                receipt_photo_path = os.path.join('uploads', filename).replace('\\', '/')
 
         new_expense = Expense(
             vehicle_id=vehicle_id,
@@ -705,7 +720,7 @@ def edit_expense(expense_id):
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{timestamp}_{filename}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                expense.receipt_photo = os.path.join('Uploads', filename).replace('\\', '/')
+                expense.receipt_photo = os.path.join('uploads', filename).replace('\\', '/')
 
         db.session.commit()
 
