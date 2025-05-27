@@ -9,3 +9,5 @@ pandas==2.1.1
 fpdf2==2.7.5
 gunicorn==21.2.0
 reportlab
+cloudinary
+python-dotenv
