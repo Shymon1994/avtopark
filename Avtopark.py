@@ -515,49 +515,20 @@ def edit_vehicle(vehicle_id):
             if len(vehicle.vin) != 17 or not vehicle.vin.isalnum():
                 return "Помилка: VIN-код має бути 17 символів і складатися з букв та цифр!", 400
 
-            @app.route('/edit_vehicle/<int:vehicle_id>', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_vehicle(vehicle_id):
-    vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
-    if request.method == 'POST':
-        try:
-            old_license_plate = vehicle.license_plate
-            vehicle.license_plate = request.form['license_plate'].strip()
-            if not vehicle.license_plate:
-                return "Помилка: Номерний знак не може бути порожнім!", 400
-
-            vehicle.manufacturer_id = int(request.form['manufacturer'])
-            vehicle.model_id = int(request.form['model'])
-            vehicle.year = request.form['year']
-            vehicle.vin = request.form['vin'].upper().strip()
-
-            if len(vehicle.vin) != 17 or not vehicle.vin.isalnum():
-                return "Помилка: VIN-код має бути 17 символів і складатися з букв та цифр!", 400
-
             if 'photo' in request.files:
                 file = request.files['photo']
                 if file and allowed_file(file.filename):
-                    # Завантаження нового фото у Cloudinary
+                    if vehicle.photo:
+                        old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(vehicle.photo))
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+                    filename = secure_filename(file.filename)
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    public_id = f"vehicles/{timestamp}_{secure_filename(file.filename)}"
-
-                    upload_result = cloudinary.uploader.upload(
-                        file,
-                        public_id=public_id,
-                        folder="vehicles",
-                        overwrite=True,
-                        resource_type="image"
-                    )
-
-                    vehicle.photo = upload_result['secure_url']
+                    filename = f"{timestamp}_{filename}"
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    vehicle.photo = os.path.join('uploads', filename).replace('\\', '/')
 
             db.session.commit()
-            return redirect(url_for('index'))  # можеш змінити на свою цільову сторінку
-
-        except Exception as e:
-            logging.error(f"Помилка при редагуванні авто {vehicle_id}: {str(e)}")
-            return f"Помилка при збереженні: {str(e)}", 500
 
             # Логування події
             event = EventLog(
@@ -675,7 +646,7 @@ def add_expense(vehicle_id):
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{timestamp}_{filename}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                receipt_photo_path = os.path.join('uploads', filename).replace('\\', '/')
+                receipt_photo_path = os.path.join('ploads', filename).replace('\\', '/')
 
         new_expense = Expense(
             vehicle_id=vehicle_id,
