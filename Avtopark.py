@@ -557,21 +557,19 @@ def delete_vehicle(vehicle_id):
         vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
         license_plate = vehicle.license_plate
 
-        # Видалення фото, якщо існує
-        if vehicle.photo:
-            # тільки відносний шлях uploads/файл
+        # Видалення локального фото, тільки якщо це не Cloudinary URL і файл існує в межах UPLOAD_FOLDER
+        if vehicle.photo and not vehicle.photo.startswith('http'):
             filename = os.path.basename(vehicle.photo)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
-            # безпека: перевіряємо, що файл лежить у межах UPLOAD_FOLDER
-            if os.path.commonprefix([os.path.realpath(file_path), os.path.realpath(app.config['UPLOAD_FOLDER'])]) == os.path.realpath(app.config['UPLOAD_FOLDER']):
-                try:
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                except Exception as file_err:
-                    logging.warning(f"Не вдалося видалити фото {file_path}: {file_err}")
-            else:
-                logging.warning(f"Небезпечний шлях: {file_path} не в межах UPLOAD_FOLDER")
+            try:
+                real_file = os.path.realpath(file_path)
+                real_folder = os.path.realpath(app.config['UPLOAD_FOLDER'])
+
+                if os.path.commonprefix([real_file, real_folder]) == real_folder and os.path.exists(real_file):
+                    os.remove(real_file)
+            except Exception as file_err:
+                logging.warning(f"Не вдалося видалити фото {file_path}: {file_err}")
 
         # Видалення об'єкта з БД
         db.session.delete(vehicle)
