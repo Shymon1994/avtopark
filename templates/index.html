@@ -3,334 +3,749 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nova Syla Auto</title>
+    <title>Список автомобілів - Nova Syla Auto</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding-top: 40px;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            margin: 5% auto;
             padding: 20px;
-            line-height: 1.6;
+            border: none;
+            width: 95%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.3s ease-in-out;
         }
-        header, main, footer {
-            max-width: 1200px;
-            margin: 0 auto;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        header {
-            text-align: center;
-            margin-bottom: 20px;
+        .close {
+            color: #888;
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            transition: color 0.2s;
         }
-        .user-info, .actions, .search-form {
-            margin-bottom: 20px;
-        }
-        .user-info a, .actions a {
-            margin-right: 10px;
+        .close:hover,
+        .close:focus {
+            color: #333;
             text-decoration: none;
-            color: #007bff;
+            cursor: pointer;
         }
-        .user-info a:hover, .actions a:hover {
-            text-decoration: underline;
-        }
-        .messages, .notifications {
-            margin-bottom: 20px;
-        }
-        .messages .alert, .notifications .notification {
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        .messages .success { background-color: #d4edda; color: #155724; }
-        .messages .error { background-color: #f8d7da; color: #721c24; }
-        .notifications .notification { background-color: #e2e3e5; color: #383d41; }
-        .stats {
+        .pagination {
             display: flex;
-            gap: 20px;
             justify-content: center;
-            margin-bottom: 20px;
+            margin-top: 16px;
         }
-        .stats div {
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
+        .pagination a {
+            padding: 8px 12px;
+            margin: 0 4px;
+            border: 1px solid #ddd;
+            color: #4a5568;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+        .pagination a:hover {
+            background-color: #e2e8f0;
+        }
+        .pagination .active {
+            background-color: #4299e1;
+            color: white;
+            border-color: #4299e1;
+        }
+        .error-message {
+            color: #dc2626;
+            font-size: 0.75rem;
+            margin-top: 4px;
+            display: none;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
+        .error-box {
+            display: none;
+            background-color: #fee2e2;
+            border: 1px solid #dc2626;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+        }
+        .header {
+            background: linear-gradient(to right, #ff6200, #0055a4);
+            color: white;
+            padding: 1rem;
             text-align: center;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
         table {
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
+            min-width: 600px;
         }
         th, td {
-            padding: 10px;
-            border: 1px solid #dee2e6;
-            text-align: left;
-        }
-        th {
-            background-color: #007bff;
-            color: white;
-        }
-        img {
-            max-width: 100px;
-            height: auto;
-        }
-        dialog {
-            border: none;
-            border-radius: 8px;
-            padding: 20px;
-            max-width: 500px;
-            width: 90%;
-        }
-        dialog::backdrop {
-            background: rgba(0, 0, 0, 0.5);
-        }
-        dialog form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        dialog label {
-            font-weight: bold;
-        }
-        dialog input, dialog select, dialog textarea {
+            font-size: 0.85rem;
             padding: 8px;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
         }
-        dialog button {
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+        #fuel_fields {
+            display: none;
         }
-        dialog button:hover {
-            background-color: #0056b3;
+        /* Додано явні стилі для поля дати */
+        #expense_date {
+            display: block !important;
+            visibility: visible !important;
         }
-        .pagination {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .pagination a {
-            margin: 0 5px;
-            text-decoration: none;
-            color: #007bff;
-        }
-        .pagination a:hover {
-            text-decoration: underline;
-        }
-        .pagination .current {
-            font-weight: bold;
-            color: #000;
+        @media (max-width: 640px) {
+            .header {
+                padding: 0.75rem;
+            }
+            .header h1 {
+                font-size: 1.25rem;
+            }
+            .container {
+                padding: 12px;
+            }
+            .grid-cols-3 {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                width: 98%;
+                padding: 16px;
+            }
+            .mb-6 {
+                margin-bottom: 1rem;
+            }
+            .p-6 {
+                padding: 1rem;
+            }
+            .text-3xl {
+                font-size: 1.5rem;
+            }
+            button, a.bg-blue-500, a.bg-green-500 {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
+            input, select {
+                padding: 8px;
+                font-size: 0.9rem;
+            }
+            .pagination a {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
         }
     </style>
 </head>
-<body>
-    <header>
-        <h1>Nova Syla Auto</h1>
-        <div class="user-info">
-            {% if current_user %}
-                <p>Вітаємо, {{ current_user.username }} ({{ current_user.role }})</p>
-                {% if current_user.role == 'admin' %}
-                    <a href="/logs">Лог подій</a>
-                    <a href="/manage_manufacturers_models">Керування виробниками та моделями</a>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <div class="header">
+                <h1>Nova Syla Auto</h1>
+            </div>
+            <div>
+                {% if current_user %}
+                    <span class="text-gray-600 mr-4 text-sm">Вітаємо, {{ current_user.username }} ({{ current_user.role }})</span>
+                    {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('logs') }}" class="text-blue-500 hover:underline mr-4 text-sm">Лог подій</a>
+                        <a href="{{ url_for('manage_manufacturers_models') }}" class="text-blue-500 hover:underline mr-4 text-sm">Керування виробниками та моделями</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="text-blue-500 hover:underline text-sm">Вийти</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="text-blue-500 hover:underline text-sm">Увійти</a>
                 {% endif %}
-                <a href="/logout">Вийти</a>
-            {% else %}
-                <a href="/login">Увійти</a>
-            {% endif %}
+            </div>
         </div>
-    </header>
 
-    <main>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="messages">
+                <div class="mb-6">
                     {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
+                        <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border-l-4 border-{{ 'green' if category == 'success' else 'red' }}-500 text-{{ 'green' if category == 'success' else 'red' }}-700 p-4 mb-2 rounded-r-lg text-sm">
+                            <p>{{ message }}</p>
+                        </div>
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
 
         {% if notifications %}
-            <div class="notifications">
+            <div class="mb-6">
                 {% for notification in notifications %}
-                    <div class="notification">{{ notification }}</div>
+                    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-2 rounded-r-lg text-sm">
+                        <p>{{ notification }}</p>
+                    </div>
                 {% endfor %}
             </div>
         {% endif %}
 
-        <section class="stats">
-            <div>
-                <h3>Загальна кількість автомобілів</h3>
-                <p>{{ vehicle_count }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Загальна кількість автомобілів</h2>
+                <p class="text-3xl font-bold text-blue-600">{{ vehicle_count }}</p>
             </div>
-            <div>
-                <h3>Загальні витрати</h3>
-                <p>{{ total_expenses }} грн</p>
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Загальні витрати</h2>
+                <p class="text-3xl font-bold text-red-600">{{ total_expenses }} грн</p>
             </div>
-        </section>
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Дії</h2>
+                {% if current_user and current_user.role == 'admin' %}
+                    <button onclick="openAddVehicleModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition mr-2 text-sm">Додати автомобіль</button>
+                {% endif %}
+                <a href="{{ url_for('reports') }}" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition text-sm">Звіти</a>
+            </div>
+        </div>
 
-        <section class="actions">
-            {% if current_user and current_user.role == 'admin' %}
-                <a href="#add-vehicle-modal" onclick="document.getElementById('add-vehicle-modal').showModal()">Додати автомобіль</a>
-            {% endif %}
-            <a href="/reports">Звіти</a>
-        </section>
-
-        <section class="search-form">
-            <form method="GET" action="/search">
-                <input type="text" name="query" placeholder="Пошук" aria-label="Пошук автомобілів">
-                <button type="submit">Пошук</button>
+        <div class="mb-6">
+            <form method="get" action="{{ url_for('index') }}" class="flex items-center">
+                <input type="text" name="search" value="{{ search_query }}" placeholder="Пошук за номером, VIN або моделлю" class="w-full md:w-1/3 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition mr-2 text-sm">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition text-sm">Пошук</button>
             </form>
-        </section>
+        </div>
 
         {% if vehicles %}
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">Фото</th>
-                        <th scope="col">Номерний знак</th>
-                        <th scope="col">Виробник</th>
-                        <th scope="col">Модель</th>
-                        <th scope="col">Рік</th>
-                        <th scope="col">VIN</th>
-                        <th scope="col">Пробіг</th>
-                        <th scope="col">Дії</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for vehicle in vehicles %}
+            <div class="table-container">
+                <table class="min-w-full bg-white border rounded-lg">
+                    <thead>
                         <tr>
-                            <td>
-                                {% if vehicle.photo %}
-                                    <img src="{{ vehicle.photo }}" alt="Фото автомобіля {{ vehicle.license_plate }}" width="100">
-                                {% else %}
-                                    Немає
-                                {% endif %}
-                            </td>
-                            <td>{{ vehicle.license_plate }}</td>
-                            <td>{{ vehicle.manufacturer.name }}</td>
-                            <td>{{ vehicle.model.name }}</td>
-                            <td>{{ vehicle.year or 'Невідомо' }}</td>
-                            <td>{{ vehicle.vin or 'Невідомо' }}</td>
-                            <td>{{ vehicle.mileage }} км</td>
-                            <td>
-                                <a href="/vehicle/{{ vehicle.id }}">Переглянути</a>
-                                {% if current_user and current_user.role == 'admin' %}
-                                    <a href="/vehicle/{{ vehicle.id }}/edit">Редагувати</a>
-                                    <a href="#add-expense-modal-{{ vehicle.id }}" onclick="document.getElementById('add-expense-modal-{{ vehicle.id }}').showModal()">Додати витрату</a>
-                                    <a href="/vehicle/{{ vehicle.id }}/delete" onclick="return confirm('Ви впевнені, що хочете видалити цей автомобіль?')">Видалити</a>
-                                {% endif %}
-                            </td>
+                            <th class="py-2 px-4 border-b text-left">Фото</th>
+                            <th class="py-2 px-4 border-b text-left">Номерний знак</th>
+                            <th class="py-2 px-4 border-b text-left">Виробник</th>
+                            <th class="py-2 px-4 border-b text-left">Модель</th>
+                            <th class="py-2 px-4 border-b text-left">Рік</th>
+                            <th class="py-2 px-4 border-b text-left">VIN</th>
+                            <th class="py-2 px-4 border-b text-left">Пробіг</th>
+                            <th class="py-2 px-4 border-b text-left">Дії</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in vehicles %}
+                            <tr>
+                                <td class="py-2 px-4 border-b">
+                                    {% if vehicle.photo %}
+                                        <img src="{{ url_for('static', filename=vehicle.photo) }}" alt="Фото автомобіля" class="w-12 h-12 object-cover rounded-lg">
+                                    {% else %}
+                                        <div class="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-lg">
+                                            <span class="text-gray-500 text-xs">Немає</span>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2 px-4 border-b">{{ vehicle.license_plate }}</td>
+                                <td class="py-2 px-4 border-b">{{ vehicle.manufacturer.name }}</td>
+                                <td class="py-2 px-4 border-b">{{ vehicle.model.name }}</td>
+                                <td class="py-2 px-4 border-b">{{ vehicle.year or 'Невідомо' }}</td>
+                                <td class="py-2 px-4 border-b">{{ vehicle.vin or 'Невідомо' }}</td>
+                                <td class="py-2 px-4 border-b">{{ vehicle.mileage }} км</td>
+                                <td class="py-2 px-4 border-b">
+                                    <a href="{{ url_for('view_vehicle', vehicle_id=vehicle.id) }}" class="text-blue-500 hover:underline mr-2 text-sm">Переглянути</a>
+                                    {% if current_user and current_user.role == 'admin' %}
+                                        <a href="{{ url_for('edit_vehicle', vehicle_id=vehicle.id) }}" class="text-green-500 hover:underline mr-2 text-sm">Редагувати</a>
+                                        <button onclick="openAddExpenseModal({{ vehicle.id }})" class="text-purple-500 hover:underline mr-2 text-sm">Додати витрату</button>
+                                        <form action="{{ url_for('delete_vehicle', vehicle_id=vehicle.id) }}" method="post" class="inline">
+                                            <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити цей автомобіль?')" class="text-red-500 hover:underline text-sm">Видалити</button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-            <nav class="pagination" aria-label="Пагінація автомобілів">
+            <div class="pagination">
                 {% if vehicles_paginated.has_prev %}
-                    <a href="{{ url_for('index', page=vehicles_paginated.prev_num) }}" aria-label="Попередня сторінка">« Попередня</a>
+                    <a href="{{ url_for('index', page=vehicles_paginated.prev_num, search=search_query) }}">« Попередня</a>
                 {% endif %}
                 {% for page_num in vehicles_paginated.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
                     {% if page_num %}
-                        <a href="{{ url_for('index', page=page_num) }}" {% if page_num == vehicles_paginated.page %}class="current"{% endif %}>{{ page_num }}</a>
+                        <a href="{{ url_for('index', page=page_num, search=search_query) }}" class="{% if page_num == vehicles_paginated.page %}active{% endif %}">{{ page_num }}</a>
                     {% else %}
                         <span>...</span>
                     {% endif %}
-                {% for %}
+                {% endfor %}
                 {% if vehicles_paginated.has_next %}
-                    <a href="{{ url_for('index', page=vehicles_paginated.next_num) }}" aria-label="Наступна сторінка">Наступна »</a>
+                    <a href="{{ url_for('index', page=vehicles_paginated.next_num, search=search_query) }}">Наступна »</a>
                 {% endif %}
-            </nav>
+            </div>
         {% else %}
-            <p>Автомобілі відсутні.</p>
+            <p class="text-gray-600 text-center text-sm">Автомобілі відсутні.</p>
         {% endif %}
-    </main>
+    </div>
 
     <!-- Модальне вікно для додавання автомобіля -->
-    <dialog id="add-vehicle-modal">
-        <h2>Додати автомобіль</h2>
-        <form method="POST" action="/add_vehicle" enctype="multipart/form-data">
-            <label for="license_plate">Номерний знак:</label>
-            <input type="text" id="license_plate" name="license_plate" required>
-
-            <label for="manufacturer">Виробник:</label>
-            <select id="manufacturer" name="manufacturer" required>
-                <option value="" disabled selected>Оберіть або введіть виробника</option>
-                {% for manufacturer in manufacturers %}
-                    <option value="{{ manufacturer.id }}">{{ manufacturer.name }}</option>
-                {% endfor %}
-            </select>
-
-            <label for="model">Модель:</label>
-            <select id="model" name="model" required>
-                <option value="" disabled selected>Оберіть або введіть модель</option>
-            </select>
-
-            <label for="year">Рік випуску:</label>
-            <input type="number" id="year" name="year" min="1900" max="{{ current_year }}">
-
-            <label for="vin">VIN-код:</label>
-            <input type="text" id="vin" name="vin" pattern="[A-HJ-NPR-Z0-9]{17}" title="VIN-код має бути 17 символів і складатися з букв та цифр!">
-
-            <label for="mileage">Пробіг (км):</label>
-            <input type="number" id="mileage" name="mileage" min="0">
-
-            <label for="photo">Фото автомобіля:</label>
-            <input type="file" id="photo" name="photo" accept="image/*">
-
-            <button type="submit">Додати автомобіль</button>
-            <button type="button" onclick="document.getElementById('add-vehicle-modal').close()">Закрити</button>
-        </form>
-    </dialog>
-
-    <!-- Модальні вікна для додавання витрат -->
-    {% for vehicle in vehicles %}
-        <dialog id="add-expense-modal-{{ vehicle.id }}">
-            <h2>Додати витрату</h2>
-            <form method="POST" action="/add_expense/{{ vehicle.id }}" enctype="multipart/form-data">
-                <label for="category-{{ vehicle.id }}">Категорія:</label>
-                <select id="category-{{ vehicle.id }}" name="category" required onchange="toggleFuelFields('{{ vehicle.id }}')">
-                    <option value="" disabled selected>Оберіть категорію</option>
-                    <option value="fuel">Паливо</option>
-                    <option value="repair">Ремонт</option>
-                    <option value="maintenance">ТО</option>
-                    <option value="parts">Запчастини</option>
-                    <option value="other">Інше</option>
-                </select>
-
-                <div id="fuel-fields-{{ vehicle.id }}" style="display: none;">
-                    <label for="fuel_volume-{{ vehicle.id }}">Об'єм палива (л):</label>
-                    <input type="number" id="fuel_volume-{{ vehicle.id }}" name="fuel_volume" min="0" step="0.01">
-
-                    <label for="fuel_price-{{ vehicle.id }}">Ціна за літр (грн):</label>
-                    <input type="number" id="fuel_price-{{ vehicle.id }}" name="fuel_price" min="0" step="0.01">
+    <div id="addVehicleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddVehicleModal()">×</span>
+            <h2 class="text-lg font-semibold mb-4 text-gray-800">Додати автомобіль</h2>
+            <div id="form-error" class="error-box"></div>
+            <form action="{{ url_for('add_vehicle') }}" method="post" enctype="multipart/form-data" id="addVehicleForm">
+                <div class="mb-4">
+                    <label for="license_plate" class="block text-gray-700 font-medium mb-1 text-sm">Номерний знак:</label>
+                    <input type="text" id="license_plate" name="license_plate" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
                 </div>
-
-                <label for="amount-{{ vehicle.id }}">Сума (грн):</label>
-                <input type="number" id="amount-{{ vehicle.id }}" name="amount" min="0" step="0.01" required>
-
-                <label for="expense_date-{{ vehicle.id }}">Дата витрати:</label>
-                <input type="date" id="expense_date-{{ vehicle.id }}" name="expense_date" max="{{ current_date }}" required title="Дата не може бути в майбутньому!">
-
-                <label for="note-{{ vehicle.id }}">Примітка:</label>
-                <textarea id="note-{{ vehicle.id }}" name="note"></textarea>
-
-                <label for="receipt_photo-{{ vehicle.id }}">Фото чека:</label>
-                <input type="file" id="receipt_photo-{{ vehicle.id }}" name="receipt_photo" accept="image/*">
-
-                <button type="submit">Додати витрату</button>
-                <button type="button" onclick="document.getElementById('add-expense-modal-{{ vehicle.id }}').close()">Закрити</button>
+                <div class="mb-4">
+                    <label for="manufacturer" class="block text-gray-700 font-medium mb-1 text-sm">Виробник:</label>
+                    <select id="manufacturer" name="manufacturer" required class="w-full p-2 border rounded-lg select2 text-sm">
+                        <option value="">Оберіть або введіть виробника</option>
+                        {% for manufacturer in manufacturers %}
+                            <option value="{{ manufacturer.id }}">{{ manufacturer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="model" class="block text-gray-700 font-medium mb-1 text-sm">Модель:</label>
+                    <select id="model" name="model" required class="w-full p-2 border rounded-lg select2 text-sm">
+                        <option value="">Оберіть або введіть модель</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="year" class="block text-gray-700 font-medium mb-1 text-sm">Рік випуску:</label>
+                    <input type="number" id="year" name="year" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                </div>
+                <div class="mb-4">
+                    <label for="vin" class="block text-gray-700 font-medium mb-1 text-sm">VIN-код:</label>
+                    <input type="text" id="vin" name="vin" maxlength="17" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                    <p id="vin_error" class="error-message">VIN-код має бути 17 символів і складатися з букв та цифр!</p>
+                </div>
+                <div class="mb-4">
+                    <label for="mileage" class="block text-gray-700 font-medium mb-1 text-sm">Пробіг (км):</label>
+                    <input type="number" id="mileage" name="mileage" min="0" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                </div>
+                <div class="mb-4">
+                    <label for="photo" class="block text-gray-700 font-medium mb-1 text-sm">Фото автомобіля:</label>
+                    <input type="file" id="photo" name="photo" accept="image/*" class="w-full p-2 border rounded-lg text-sm">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition text-sm">Додати автомобіль</button>
             </form>
-        </dialog>
-    {% endfor %}
+        </div>
+    </div>
+
+    <!-- Модальне вікно для додавання витрат -->
+    <div id="addExpenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddExpenseModal()">×</span>
+            <h2 class="text-lg font-semibold mb-4 text-gray-800">Додати витрату</h2>
+            <div id="expense-form-error" class="error-box"></div>
+            <form id="addExpenseForm" method="post" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label for="expense_category" class="block text-gray-700 font-medium mb-1 text-sm">Категорія:</label>
+                    <select id="expense_category" name="category" required class="w-full p-2 border rounded-lg select2 text-sm">
+                        <option value="">Оберіть категорію</option>
+                        <option value="Паливо">Паливо</option>
+                        <option value="Ремонт">Ремонт</option>
+                        <option value="ТО">ТО</option>
+                        <option value="Запчастини">Запчастини</option>
+                        <option value="Інше">Інше</option>
+                    </select>
+                </div>
+                <div id="fuel_fields">
+                    <div class="mb-4">
+                        <label for="fuel_volume" class="block text-gray-700 font-medium mb-1 text-sm">Об'єм палива (л):</label>
+                        <input type="number" id="fuel_volume" name="fuel_volume" min="0" step="0.01" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label for="fuel_price_per_liter" class="block text-gray-700 font-medium mb-1 text-sm">Ціна за літр (грн):</label>
+                        <input type="number" id="fuel_price_per_liter" name="fuel_price_per_liter" min="0" step="0.01" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                    </div>
+                </div>
+                <div class="mb-4" id="amount_field">
+                    <label for="amount" class="block text-gray-700 font-medium mb-1 text-sm">Сума (грн):</label>
+                    <input type="number" id="amount" name="amount" min="0" step="0.01" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                </div>
+                <div class="mb-4">
+                    <label for="expense_date" class="block text-gray-700 font-medium mb-1 text-sm">Дата витрати:</label>
+                    <input type="date" id="expense_date" name="expense_date" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                    <p id="date_error" class="error-message">Дата не може бути в майбутньому!</p>
+                </div>
+                <div class="mb-4">
+                    <label for="note" class="block text-gray-700 font-medium mb-1 text-sm">Примітка:</label>
+                    <textarea id="note" name="note" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm"></textarea>
+                </div>
+                <div class="mb-4">
+                    <label for="receipt_photo" class="block text-gray-700 font-medium mb-1 text-sm">Фото чека:</label>
+                    <input type="file" id="receipt_photo" name="receipt_photo" accept="image/*" class="w-full p-2 border rounded-lg text-sm">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition text-sm">Додати витрату</button>
+            </form>
+        </div>
+    </div>
 
     <script>
-        function toggleFuelFields(vehicleId) {
-            const category = document.getElementById(`category-${vehicleId}`).value;
-            const fuelFields = document.getElementById(`fuel-fields-${vehicleId}`);
-            fuelFields.style.display = category === 'fuel' ? 'block' : 'none';
+        // Перевірка завантаження jQuery
+        if (typeof jQuery === 'undefined') {
+            console.error('jQuery не завантажено. Перевірте CDN або локальне підключення.');
+        } else {
+            console.log('jQuery успішно завантажено, версія:', jQuery.fn.jquery);
         }
+
+        // Функція для відкриття модального вікна додавання автомобіля
+        function openAddVehicleModal() {
+            console.log('Відкриття модального вікна для автомобіля');
+            $('#addVehicleModal').show();
+            $('#form-error').hide();
+            $('#addVehicleForm')[0].reset();
+            $('#manufacturer').val(null).trigger('change');
+            $('#model').val(null).trigger('change');
+            $('#vin_error').hide();
+        }
+
+        // Функція для закриття модального вікна додавання автомобіля
+        function closeAddVehicleModal() {
+            console.log('Закриття модального вікна для автомобіля');
+            $('#addVehicleModal').hide();
+        }
+
+        // Функція для відкриття модального вікна додавання витрат
+        function openAddExpenseModal(vehicleId) {
+            console.log('Відкриття модального вікна для витрат, vehicleId:', vehicleId);
+            $('#addExpenseModal').show();
+            $('#expense-form-error').hide();
+            $('#addExpenseForm')[0].reset();
+            $('#expense_category').val(null).trigger('change');
+            $('#fuel_fields').hide();
+            $('#amount_field').show();
+            $('#date_error').hide();
+            $('#addExpenseForm').attr('action', '/add_expense/' + vehicleId);
+            // Дебагінг: перевірка наявності поля дати
+            if ($('#expense_date').length) {
+                console.log('Поле дати (#expense_date) знайдено в DOM');
+                $('#expense_date').val(''); // Скидаємо значення
+            } else {
+                console.error('Поле дати (#expense_date) НЕ знайдено в DOM');
+            }
+        }
+
+        // Функція для закриття модального вікна додавання витрат
+        function closeAddExpenseModal() {
+            console.log('Закриття модального вікна для витрат');
+            $('#addExpenseModal').hide();
+        }
+
+        // Функція для додавання нового виробника
+        function addNewManufacturer(name) {
+            console.log('Додавання виробника:', name);
+            return new Promise((resolve, reject) => {
+                $.ajax({
+                    url: '{{ url_for("add_manufacturer") }}',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ name: name }),
+                    success: function(response) {
+                        console.log('Виробник додано:', response);
+                        if (response.id) {
+                            $('#manufacturer').append(`<option value="${response.id}">${response.name}</option>`);
+                            resolve(response);
+                        } else {
+                            reject(response.error || 'Помилка при додаванні виробника');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Помилка додавання виробника:', xhr);
+                        reject(xhr.responseJSON?.error || 'Помилка сервера');
+                    }
+                });
+            });
+        }
+
+        // Функція для оновлення списку моделей
+        function updateModels() {
+            const manufacturerId = $('#manufacturer').val();
+            const modelSelect = $('#model');
+            console.log('Оновлення моделей для manufacturerId:', manufacturerId);
+            modelSelect.empty().append('<option value="">Оберіть або введіть модель</option>');
+            if (manufacturerId && !isNaN(manufacturerId)) {
+                $.ajax({
+                    url: '/get_models/' + manufacturerId,
+                    type: 'GET',
+                    success: function(response) {
+                        console.log('Моделі отримано:', response);
+                        response.forEach(function(model) {
+                            modelSelect.append(`<option value="${model.id}">${model.name}</option>`);
+                        });
+                        modelSelect.trigger('change');
+                    },
+                    error: function(xhr) {
+                        console.error('Помилка отримання моделей:', xhr);
+                        $('#form-error').text('Помилка при завантаженні моделей').show();
+                    }
+                });
+            }
+        }
+
+        // Функція для додавання нової моделі
+        function addNewModel(name, manufacturerId) {
+            console.log('Додавання моделі:', name, 'для manufacturerId:', manufacturerId);
+            return new Promise((resolve, reject) => {
+                $.ajax({
+                    url: '{{ url_for("add_model") }}',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ name: name, manufacturer_id: manufacturerId }),
+                    success: function(response) {
+                        console.log('Модель додано:', response);
+                        if (response.id) {
+                            $('#model').append(`<option value="${response.id}">${response.name}</option>`);
+                            resolve(response);
+                        } else {
+                            reject(response.error || 'Помилка при додаванні моделі');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Помилка додавання моделі:', xhr);
+                        reject(xhr.responseJSON?.error || 'Помилка сервера');
+                    }
+                });
+            });
+        }
+
+        $(document).ready(function() {
+            console.log('Документ готовий, ініціалізація Select2');
+            $('.select2').select2({
+                tags: true,
+                placeholder: "Оберіть або введіть",
+                allowClear: true,
+                createTag: function(params) {
+                    return {
+                        id: params.term,
+                        text: params.term,
+                        newTag: true
+                    };
+                }
+            });
+
+            $('#manufacturer').on('select2:select', function(e) {
+                console.log('Виробник обрано:', e.params.data);
+                const errorBox = $('#form-error');
+                errorBox.hide();
+                if (e.params.data.newTag) {
+                    addNewManufacturer(e.params.data.text)
+                        .then((response) => {
+                            $('#manufacturer').val(response.id).trigger('change');
+                            updateModels();
+                        })
+                        .catch(err => {
+                            errorBox.text('Помилка при додаванні виробника: ' + err).show();
+                        });
+                } else {
+                    updateModels();
+                }
+            });
+
+            $('#model').on('select2:select', function(e) {
+                console.log('Модель обрано:', e.params.data);
+                const errorBox = $('#form-error');
+                errorBox.hide();
+                if (e.params.data.newTag) {
+                    const manufacturerId = $('#manufacturer').val();
+                    if (manufacturerId && !isNaN(manufacturerId)) {
+                        addNewModel(e.params.data.text, manufacturerId)
+                            .then((response) => {
+                                $('#model').val(response.id).trigger('change');
+                            })
+                            .catch(err => {
+                                errorBox.text('Помилка при додаванні моделі: ' + err).show();
+                            });
+                    } else {
+                        errorBox.text('Спочатку оберіть виробника!').show();
+                        $('#model').val(null).trigger('change');
+                    }
+                }
+            });
+
+            $('#addVehicleForm').on('submit', function(e) {
+                e.preventDefault();
+                const vin = $('#vin').val();
+                const manufacturerId = $('#manufacturer').val();
+                const modelId = $('#model').val();
+                const mileage = $('#mileage').val();
+                const errorBox = $('#form-error');
+                const vinError = $('#vin_error');
+                errorBox.hide();
+                vinError.hide();
+
+                if (vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+                    vinError.show();
+                    return;
+                }
+
+                if (!manufacturerId || isNaN(manufacturerId)) {
+                    errorBox.text('Будь ласка, оберіть або створіть виробника!').show();
+                    return;
+                }
+                if (!modelId || isNaN(modelId)) {
+                    errorBox.text('Будь ласка, оберіть або створіть модель!').show();
+                    return;
+                }
+                if (!mileage || mileage < 0) {
+                    errorBox.text('Пробіг має бути невід’ємним числом!').show();
+                    return;
+                }
+
+                const formData = new FormData(this);
+                console.log('Відправка форми автомобіля:', {
+                    license_plate: formData.get('license_plate'),
+                    manufacturer: formData.get('manufacturer'),
+                    model: formData.get('model'),
+                    year: formData.get('year'),
+                    vin: formData.get('vin'),
+                    mileage: formData.get('mileage'),
+                    photo: formData.get('photo') ? 'Файл присутній' : 'Без фото'
+                });
+
+                $.ajax({
+                    url: '/add_vehicle',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        console.log('Успішна відповідь:', response);
+                        if (response.success) {
+                            $('#form-error').html('<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-2 mb-4 rounded-r-lg">' + response.success + '</div>').show();
+                            setTimeout(() => {
+                                closeAddVehicleModal();
+                                window.location.href = response.redirect;
+                            }, 1500);
+                        } else {
+                            console.warn('Помилка в відповіді:', response.error);
+                            errorBox.text(response.error || 'Невідома помилка').show();
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Помилка AJAX:', xhr);
+                        const error = xhr.responseJSON?.error || 'Помилка сервера';
+                        errorBox.text(error).show();
+                    }
+                });
+            });
+
+            $('#expense_category').on('select2:select', function(e) {
+                console.log('Категорія обрана:', e.params.data.text);
+                if (e.params.data.text === 'Паливо') {
+                    $('#fuel_fields').show();
+                    $('#amount_field').hide();
+                    $('#amount').removeAttr('required');
+                } else {
+                    $('#fuel_fields').hide();
+                    $('#amount_field').show();
+                    $('#amount').attr('required', 'required');
+                }
+            });
+
+            $('#addExpenseForm').on('submit', function(e) {
+                e.preventDefault();
+                const category = $('#expense_category').val();
+                const amount = $('#amount').val();
+                const fuelVolume = $('#fuel_volume').val();
+                const fuelPricePerLiter = $('#fuel_price_per_liter').val();
+                const expenseDate = $('#expense_date').val();
+                const errorBox = $('#expense-form-error');
+                const dateError = $('#date_error');
+                errorBox.hide();
+                dateError.hide();
+
+                // Дебагінг: логування значення поля дати
+                console.log('Значення expense_date:', expenseDate);
+
+                const today = new Date().toISOString().split('T')[0];
+                if (expenseDate > today) {
+                    dateError.show();
+                    return;
+                }
+
+                if (!category) {
+                    errorBox.text('Будь ласка, оберіть категорію!').show();
+                    return;
+                }
+
+                if (category === 'Паливо') {
+                    if (!fuelVolume || fuelVolume <= 0 || !fuelPricePerLiter || fuelPricePerLiter <= 0) {
+                        errorBox.text('Об’єм палива та ціна за літр мають бути більше 0!').show();
+                        return;
+                    }
+                } else {
+                    if (!amount || amount <= 0) {
+                        errorBox.text('Сума має бути більше 0!').show();
+                        return;
+                    }
+                }
+
+                const formData = new FormData(this);
+                // Дебагінг: логування даних форми
+                console.log('Відправка форми витрат:', {
+                    category: formData.get('category'),
+                    amount: formData.get('amount'),
+                    fuel_volume: formData.get('fuel_volume'),
+                    fuel_price_per_liter: formData.get('fuel_price_per_liter'),
+                    expense_date: formData.get('expense_date'),
+                    note: formData.get('note'),
+                    receipt_photo: formData.get('receipt_photo') ? 'Файл присутній' : 'Без фото'
+                });
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        console.log('Успішна відповідь:', response);
+                        if (response.success) {
+                            $('#expense-form-error').html('<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-2 mb-4 rounded-r-lg">' + response.success + '</div>').show();
+                            setTimeout(() => {
+                                closeAddExpenseModal();
+                                window.location.href = response.redirect;
+                            }, 1500);
+                        } else {
+                            console.warn('Помилка в відповіді:', response.error);
+                            errorBox.text(response.error || 'Невідома помилка').show();
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Помилка AJAX:', xhr);
+                        const error = xhr.responseJSON?.error || 'Помилка сервера';
+                        errorBox.text(error).show();
+                    }
+                });
+            });
+
+            $(window).on('click', function(event) {
+                if ($(event.target).hasClass('modal')) {
+                    closeAddVehicleModal();
+                    closeAddExpenseModal();
+                }
+            });
+        });
     </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'932ae79e6cba6759',t:'MTc0NTA1MDAwOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
