@@ -14,44 +14,37 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.colors import Color
 import cloudinary
 import cloudinary.uploader
+import requests  # Додано для перевірки доступності URL
 from dotenv import load_dotenv
 
 load_dotenv()
-cloudinary.config(secure=True)  # Бере CLOUDINARY_URL із .env
-
+cloudinary.config(secure=True)
 
 # Налаштування логування
 logging.basicConfig(filename='fleet.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Визначаємо базову директорію проекту
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
 
-# Налаштування для сесій
-import os
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "fallback-key")  # Зміни на унікальний ключ у продакшені
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "fallback-key")
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, "instance", "fleet.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 
-# Переконаємося, що папка для завантажень існує
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Ініціалізація бази даних
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# Список типів ТО
 MAINTENANCE_TYPES = ["Планове ТО", "Заміна масла", "Діагностика", "Ремонт гальм", "Заміна шин", "Інше"]
 
-# Моделі
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, unique=True)
     password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), default='user')  # "admin" або "user"
+    role = db.Column(db.String(20), default='user')
 
 class EventLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -116,7 +109,6 @@ class Insurance(db.Model):
     amount = db.Column(db.Float, nullable=False)
     note = db.Column(db.String(200))
 
-# Функція для ініціалізації бази даних
 def init_db():
     with app.app_context():
         inspector = db.inspect(db.engine)
@@ -166,7 +158,7 @@ def init_db():
             db.session.add(unknown_model)
             db.session.commit()
             logging.info(f"База даних ініціалізована за шляхом: {app.config['SQLALCHEMY_DATABASE_URI']}")
-        if not db.session.get(User, 1):  # Use Session.get instead of Query.get
+        if not db.session.get(User, 1):
             admin = User(
                 username='admin',
                 password_hash=generate_password_hash('admin123'),
@@ -187,7 +179,6 @@ def init_db():
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Прогнозування витрат
 def predict_expenses(vehicle_id):
     expenses = Expense.query.filter_by(vehicle_id=vehicle_id).all()
     if len(expenses) < 2:
@@ -197,7 +188,15 @@ def predict_expenses(vehicle_id):
     predicted = amounts[-1] + avg_increase
     return round(predicted, 2)
 
-# Декоратор для перевірки авторизації
+# Додано функцію для перевірки доступності URL
+def is_url_accessible(url):
+    try:
+        response = requests.head(url, timeout=5)
+        return response.status_code == 200
+    except requests.RequestException as e:
+        logging.error(f"Помилка перевірки доступності URL {url}: {str(e)}")
+        return False
+
 def login_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -207,7 +206,6 @@ def login_required(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Декоратор для перевірки адмінських прав
 def admin_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -220,15 +218,13 @@ def admin_required(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Контекстний процесор для передачі MAINTENANCE_TYPES та інформації про користувача
 @app.context_processor
 def inject_globals():
     current_user = None
     if 'user_id' in session:
-        current_user = db.session.get(User, session['user_id'])  # Use Session.get instead of Query.get
+        current_user = db.session.get(User, session['user_id'])
     return dict(maintenance_types=MAINTENANCE_TYPES, current_user=current_user)
 
-# Маршрути
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -389,15 +385,14 @@ def export_report_pdf():
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
-    # Додаємо помаранчевий фон для заголовка
-    c.setFillColor(Color(1, 0.38, 0))  # Помаранчевий (#ff6200)
-    c.rect(50, 740, 500, 30, fill=True)  # Зменшено висоту до 30
-    c.setFont("Helvetica-Bold", 14)  # Зменшено розмір шрифту до 14
-    c.setFillColor(Color(1, 1, 1))  # Білий текст
+    c.setFillColor(Color(1, 0.38, 0))
+    c.rect(50, 740, 500, 30, fill=True)
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(Color(1, 1, 1))
     c.drawString(100, 750, "Nova Syla Auto Detailed Report")
     
     y = 700
-    c.setFillColor(Color(0, 0, 0))  # Чорний для решти тексту
+    c.setFillColor(Color(0, 0, 0))
     c.setFont("Helvetica", 12)
     c.drawString(100, y, "Expenses:")
     y -= 20
@@ -440,42 +435,70 @@ def export_report_pdf():
 @app.route('/vehicle/<int:vehicle_id>')
 @login_required
 def view_vehicle(vehicle_id):
-    vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)  # Use Session.get
+    vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
     predicted_expense = predict_expenses(vehicle_id)
-    return render_template('vehicle.html', vehicle=vehicle, predicted_expense=predicted_expense)
+    # Перевірка доступності фото
+    photo_accessible = is_url_accessible(vehicle.photo) if vehicle.photo else False
+    return render_template('vehicle.html', vehicle=vehicle, predicted_expense=predicted_expense, photo_accessible=photo_accessible)
 
 @app.route('/add_vehicle', methods=['POST'])
-@login_required
-@admin_required
 def add_vehicle():
+    # Перевірка авторизації
+    if 'user_id' not in session:
+        return jsonify({'error': 'Необхідно увійти в систему!'}), 401
+
+    # Отримання даних із форми
+    license_plate = request.form.get('license_plate')
+    manufacturer_id = request.form.get('manufacturer')
+    model_id = request.form.get('model')
+    year = request.form.get('year')
+    vin = request.form.get('vin')
+    mileage = request.form.get('mileage')
+
+    # Валідація даних
+    if not license_plate or not mileage:
+        return jsonify({'error': 'Номерний знак і пробіг обов’язкові!'}), 400
+
+    if not Manufacturer.query.get(manufacturer_id) or not Model.query.get(model_id):
+        return jsonify({'error': 'Виробник або модель не знайдені!'}), 400
+
     try:
-        license_plate = request.form['license_plate'].strip()
-        if not license_plate:
-            return jsonify({'error': 'Номерний знак не може бути порожнім!'}), 400
-
-        manufacturer_id = int(request.form['manufacturer'])
-        model_id = int(request.form['model'])
-        year = request.form['year']
-        vin = request.form['vin'].upper().strip()
-        mileage = int(request.form['mileage'])
-
-        # Посилена перевірка VIN-коду
-        if not vin or not re.match(r'^[A-HJ-NPR-Z0-9]{17}$', vin):
-            return jsonify({'error': 'VIN-код має бути 17 символів і не містити I, O, Q!'}), 400
+        mileage = int(mileage)
         if mileage < 0:
             return jsonify({'error': 'Пробіг не може бути від’ємним!'}), 400
+    except ValueError:
+        return jsonify({'error': 'Пробіг має бути числом!'}), 400
 
-        photo_path = None
-        if 'photo' in request.files:
-            file = request.files['photo']
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{timestamp}_{filename}"
+    if vin and (len(vin) != 17 or not vin.isalnum()):
+        return jsonify({'error': 'VIN-код має бути 17 символів із букв і цифр!'}), 400
+
+    # Завантаження фото
+    photo_path = None
+    if 'photo' in request.files:
+        file = request.files['photo']
+        if file.filename == '':
+            return jsonify({'error': 'Файл не вибрано!'}), 400
+
+        if file.content_length > 5 * 1024 * 1024:  # Ліміт 5MB
+            return jsonify({'error': 'Файл занадто великий (максимум 5MB)!'}), 400
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{timestamp}_{filename}"
+            try:
                 upload_result = cloudinary.uploader.upload(file)
+                logging.info(f"Cloudinary upload result: {upload_result}")
                 photo_path = upload_result['secure_url']
+                if not is_url_accessible(photo_path):
+                    logging.error(f"Завантажене зображення {photo_path} недоступне після завантаження")
+                    return jsonify({'error': 'Помилка: завантажене зображення недоступне на Cloudinary!'}), 500
+            except Exception as e:
+                logging.error(f"Помилка завантаження на Cloudinary: {str(e)}")
+                return jsonify({'error': f'Помилка завантаження фото на Cloudinary: {str(e)}'}), 500
 
-
+    # Створення нового автомобіля
+    try:
         new_vehicle = Vehicle(
             license_plate=license_plate,
             manufacturer_id=manufacturer_id,
@@ -487,8 +510,13 @@ def add_vehicle():
         )
         db.session.add(new_vehicle)
         db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Помилка збереження автомобіля: {str(e)}")
+        return jsonify({'error': 'Помилка збереження автомобіля в базі даних!'}), 500
 
-        # Логування події
+    # Логування події
+    try:
         event = EventLog(
             user_id=session['user_id'],
             action="Додавання автомобіля",
@@ -496,12 +524,12 @@ def add_vehicle():
         )
         db.session.add(event)
         db.session.commit()
-
-        logging.info(f"Додано автомобіль {license_plate} користувачем {session['username']} (IP: {request.remote_addr})")
-        return jsonify({'success': 'Автомобіль успішно додано!', 'redirect': url_for('index')})
     except Exception as e:
-        logging.error(f"Помилка при додаванні автомобіля: {str(e)}")
-        return jsonify({'error': f'Помилка при додаванні автомобіля: {str(e)}'}), 500
+        db.session.rollback()
+        logging.error(f"Помилка логування події: {str(e)}")
+        return jsonify({'error': 'Помилка логування події!'}), 500
+
+    return jsonify({'success': 'Автомобіль додано!', 'redirect': url_for('index')})
 
 @app.route('/edit_vehicle/<int:vehicle_id>', methods=['GET', 'POST'])
 @login_required
@@ -526,8 +554,17 @@ def edit_vehicle(vehicle_id):
             if 'photo' in request.files:
                 file = request.files['photo']
                 if file and allowed_file(file.filename):
-                    upload_result = cloudinary.uploader.upload(file)
-                    vehicle.photo = upload_result['secure_url']
+                    try:
+                        upload_result = cloudinary.uploader.upload(file)
+                        logging.info(f"Cloudinary upload result: {upload_result}")
+                        vehicle.photo = upload_result['secure_url']
+                        # Перевірка доступності щойно завантаженого зображення
+                        if not is_url_accessible(vehicle.photo):
+                            logging.error(f"Завантажене зображення {vehicle.photo} недоступне після завантаження")
+                            return "Помилка: завантажене зображення недоступне на Cloudinary!", 500
+                    except Exception as e:
+                        logging.error(f"Помилка завантаження на Cloudinary: {str(e)}")
+                        return f"Помилка завантаження фото на Cloudinary: {str(e)}", 500
 
             db.session.commit()
 
@@ -557,7 +594,7 @@ def delete_vehicle(vehicle_id):
         vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
         license_plate = vehicle.license_plate
 
-        # Видалення локального фото, тільки якщо це не Cloudinary URL і файл існує в межах UPLOAD_FOLDER
+        # Видалення локального фото (хоча ми використовуємо Cloudinary, залишимо для сумісності)
         if vehicle.photo and not vehicle.photo.startswith('http'):
             filename = os.path.basename(vehicle.photo)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -575,7 +612,6 @@ def delete_vehicle(vehicle_id):
         db.session.delete(vehicle)
         db.session.commit()
 
-        # Логування
         event = EventLog(
             user_id=session['user_id'],
             action="Видалення автомобіля",
@@ -605,7 +641,6 @@ def add_expense(vehicle_id):
         fuel_volume = None
         fuel_price_per_liter = None
 
-        # Обробка дати
         if expense_date_str:
             try:
                 expense_date = datetime.strptime(expense_date_str, '%Y-%m-%d').date()
@@ -641,11 +676,16 @@ def add_expense(vehicle_id):
         if 'receipt_photo' in request.files:
             file = request.files['receipt_photo']
             if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{timestamp}_{filename}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                receipt_photo_path = os.path.join('ploads', filename).replace('\\', '/')
+                try:
+                    upload_result = cloudinary.uploader.upload(file)
+                    logging.info(f"Cloudinary upload result for receipt: {upload_result}")
+                    receipt_photo_path = upload_result['secure_url']
+                    if not is_url_accessible(receipt_photo_path):
+                        logging.error(f"Завантажене фото чека {receipt_photo_path} недоступне після завантаження")
+                        return jsonify({'error': 'Помилка: завантажене фото чека недоступне на Cloudinary!'}), 500
+                except Exception as e:
+                    logging.error(f"Помилка завантаження фото чека на Cloudinary: {str(e)}")
+                    return jsonify({'error': f'Помилка завантаження фото чека на Cloudinary: {str(e)}'}), 500
 
         new_expense = Expense(
             vehicle_id=vehicle_id,
@@ -715,8 +755,16 @@ def edit_expense(expense_id):
         if 'receipt_photo' in request.files:
             file = request.files['receipt_photo']
             if file and allowed_file(file.filename):
-                upload_result = cloudinary.uploader.upload(file)
-                expense.receipt_photo = upload_result['secure_url']
+                try:
+                    upload_result = cloudinary.uploader.upload(file)
+                    logging.info(f"Cloudinary upload result for receipt: {upload_result}")
+                    expense.receipt_photo = upload_result['secure_url']
+                    if not is_url_accessible(expense.receipt_photo):
+                        logging.error(f"Завантажене фото чека {expense.receipt_photo} недоступне після завантаження")
+                        return "Помилка: завантажене фото чека недоступне на Cloudinary!", 500
+                except Exception as e:
+                    logging.error(f"Помилка завантаження фото чека на Cloudinary: {str(e)}")
+                    return f"Помилка завантаження фото чека на Cloudinary: {str(e)}", 500
 
         db.session.commit()
 
@@ -735,12 +783,11 @@ def edit_expense(expense_id):
         logging.error(f"Помилка при редагуванні витрати {expense_id}: {str(e)}")
         return f"Помилка при редагуванні витрати: {str(e)}", 500
 
-
 @app.route('/archive_expense/<int:expense_id>', methods=['POST'])
 @login_required
 def archive_expense(expense_id):
     try:
-        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)  # Use Session.get
+        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)
         expense.is_archived = True
         db.session.commit()
 
@@ -762,7 +809,7 @@ def archive_expense(expense_id):
 @login_required
 def delete_expense(expense_id):
     try:
-        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)  # Use Session.get
+        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)
         vehicle_id = expense.vehicle_id
         category = expense.category
         amount = expense.amount
@@ -791,7 +838,7 @@ def delete_expense(expense_id):
 @login_required
 def add_maintenance(vehicle_id):
     try:
-        vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)  # Use Session.get
+        vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
         mileage_str = request.form['mileage'].strip()
         type_to = request.form['type'].strip()
         note = request.form['note'].strip()
@@ -879,7 +926,6 @@ def add_insurance(vehicle_id):
         db.session.add(new_insurance)
         db.session.commit()
 
-        # Додаємо витрату з категорією "Страховка"
         new_expense = Expense(
             vehicle_id=vehicle_id,
             category="Страховка",
@@ -911,7 +957,7 @@ def add_insurance(vehicle_id):
 @login_required
 def delete_insurance(insurance_id):
     try:
-        insurance = db.session.get(Insurance, insurance_id) or Insurance.query.get_or_404(insurance_id)  # Use Session.get
+        insurance = db.session.get(Insurance, insurance_id) or Insurance.query.get_or_404(insurance_id)
         vehicle_id = insurance.vehicle_id
         company = insurance.company
         amount = insurance.amount
@@ -953,7 +999,6 @@ def add_manufacturer():
         if not name:
             logging.warning("Назва виробника порожня")
             return jsonify({'error': 'Назва виробника не може бути порожньою'}), 400
-        # Перевірка унікальності без урахування регістру
         existing = Manufacturer.query.filter(db.func.lower(Manufacturer.name) == name.lower()).first()
         if existing:
             logging.info(f"Виробник '{name}' уже існує з ID: {existing.id}")
@@ -961,7 +1006,6 @@ def add_manufacturer():
         manufacturer = Manufacturer(name=name)
         db.session.add(manufacturer)
         db.session.commit()
-        # Логування події
         event = EventLog(
             user_id=session['user_id'],
             action="Додавання виробника",
@@ -980,14 +1024,13 @@ def add_manufacturer():
 @admin_required
 def edit_manufacturer(manufacturer_id):
     try:
-        manufacturer = db.session.get(Manufacturer, manufacturer_id) or Manufacturer.query.get_or_404(manufacturer_id)  # Use Session.get
+        manufacturer = db.session.get(Manufacturer, manufacturer_id) or Manufacturer.query.get_or_404(manufacturer_id)
         data = request.get_json()
         name = data.get('name', '').strip()
         logging.debug(f"Спроба редагувати виробника ID {manufacturer_id}: {name}")
         if not name:
             logging.warning("Назва виробника порожня")
             return jsonify({'error': 'Назва виробника не може бути порожньою'}), 400
-        # Перевірка унікальності без урахування регістру
         existing = Manufacturer.query.filter(
             db.func.lower(Manufacturer.name) == name.lower(),
             Manufacturer.id != manufacturer_id
@@ -998,7 +1041,6 @@ def edit_manufacturer(manufacturer_id):
         old_name = manufacturer.name
         manufacturer.name = name
         db.session.commit()
-        # Логування події
         event = EventLog(
             user_id=session['user_id'],
             action="Редагування виробника",
@@ -1017,7 +1059,7 @@ def edit_manufacturer(manufacturer_id):
 @admin_required
 def delete_manufacturer(manufacturer_id):
     try:
-        manufacturer = db.session.get(Manufacturer, manufacturer_id) or Manufacturer.query.get_or_404(manufacturer_id)  # Use Session.get
+        manufacturer = db.session.get(Manufacturer, manufacturer_id) or Manufacturer.query.get_or_404(manufacturer_id)
         if manufacturer.name.lower() == "unknown":
             logging.warning("Спроба видалити виробника 'Unknown'")
             return jsonify({'error': 'Виробника "Unknown" не можна видалити'}), 400
@@ -1027,7 +1069,6 @@ def delete_manufacturer(manufacturer_id):
         name = manufacturer.name
         db.session.delete(manufacturer)
         db.session.commit()
-        # Логування події
         event = EventLog(
             user_id=session['user_id'],
             action="Видалення виробника",
@@ -1053,12 +1094,10 @@ def add_model():
         if not name or not manufacturer_id:
             logging.warning("Назва моделі або ID виробника порожні")
             return jsonify({'error': 'Назва моделі або ID виробника не можуть бути порожніми'}), 400
-        # Перевірка існування виробника
-        manufacturer = db.session.get(Manufacturer, manufacturer_id)  # Use Session.get
+        manufacturer = db.session.get(Manufacturer, manufacturer_id)
         if not manufacturer:
             logging.warning(f"Виробник з ID {manufacturer_id} не знайдено")
             return jsonify({'error': 'Виробник не знайдений'}), 400
-        # Перевірка унікальності без урахування регістру
         existing = Model.query.filter(
             db.func.lower(Model.name) == name.lower(),
             Model.manufacturer_id == manufacturer_id
@@ -1069,7 +1108,6 @@ def add_model():
         model = Model(name=name, manufacturer_id=manufacturer_id)
         db.session.add(model)
         db.session.commit()
-        # Логування події
         event = EventLog(
             user_id=session['user_id'],
             action="Додавання моделі",
@@ -1088,7 +1126,7 @@ def add_model():
 @admin_required
 def edit_model(model_id):
     try:
-        model = db.session.get(Model, model_id) or Model.query.get_or_404(model_id)  # Use Session.get
+        model = db.session.get(Model, model_id) or Model.query.get_or_404(model_id)
         data = request.get_json()
         name = data.get('name', '').strip()
         manufacturer_id = data.get('manufacturer_id')
@@ -1096,12 +1134,10 @@ def edit_model(model_id):
         if not name or not manufacturer_id:
             logging.warning("Назва моделі або ID виробника порожні")
             return jsonify({'error': 'Назва моделі або ID виробника не можуть бути порожніми'}), 400
-        # Перевірка існування виробника
-        manufacturer = db.session.get(Manufacturer, manufacturer_id)  # Use Session.get
+        manufacturer = db.session.get(Manufacturer, manufacturer_id)
         if not manufacturer:
             logging.warning(f"Виробник з ID {manufacturer_id} не знайдено")
             return jsonify({'error': 'Виробник не знайдений'}), 400
-        # Перевірка унікальності без урахування регістру
         existing = Model.query.filter(
             db.func.lower(Model.name) == name.lower(),
             Model.manufacturer_id == manufacturer_id,
@@ -1114,7 +1150,6 @@ def edit_model(model_id):
         model.name = name
         model.manufacturer_id = manufacturer_id
         db.session.commit()
-        # Логування події
         event = EventLog(
             user_id=session['user_id'],
             action="Редагування моделі",
@@ -1133,7 +1168,7 @@ def edit_model(model_id):
 @admin_required
 def delete_model(model_id):
     try:
-        model = db.session.get(Model, model_id) or Model.query.get_or_404(model_id)  # Use Session.get
+        model = db.session.get(Model, model_id) or Model.query.get_or_404(model_id)
         if model.name.lower() == "unknown" and model.manufacturer.name.lower() == "unknown":
             logging.warning("Спроба видалити модель 'Unknown' виробника 'Unknown'")
             return jsonify({'error': 'Модель "Unknown" не можна видалити'}), 400
@@ -1144,7 +1179,6 @@ def delete_model(model_id):
         manufacturer_id = model.manufacturer_id
         db.session.delete(model)
         db.session.commit()
-        # Логування події
         event = EventLog(
             user_id=session['user_id'],
             action="Видалення моделі",
@@ -1166,7 +1200,6 @@ def manage_manufacturers_models():
     models = Model.query.order_by(Model.name).all()
     return render_template('manage_manufacturers_models.html', manufacturers=manufacturers, models=models)
 
-# Ініціалізація бази даних перед запуском додатку
 init_db()
 
 if __name__ == '__main__':
