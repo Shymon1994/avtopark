@@ -201,6 +201,23 @@ def is_url_accessible(url):
         return False
 
 
+def upload_image(file):
+    """Upload an image to Cloudinary and verify it is accessible."""
+    try:
+        upload_result = cloudinary.uploader.upload(file)
+        logging.info(f"Cloudinary upload result: {upload_result}")
+        secure_url = upload_result['secure_url']
+        if not is_url_accessible(secure_url):
+            logging.error(
+                f"Завантажене зображення {secure_url} недоступне після завантаження"
+            )
+            raise Exception('Uploaded image is not accessible on Cloudinary!')
+        return secure_url
+    except Exception as e:
+        logging.error(f"Помилка завантаження на Cloudinary: {str(e)}")
+        raise
+
+
 @app.template_filter('photo_url')
 def photo_url(photo_path):
     """Return a usable URL for a photo path."""
@@ -494,18 +511,9 @@ def add_vehicle():
             return jsonify({'error': 'Файл занадто великий (максимум 5MB)!'}), 400
 
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{filename}"
             try:
-                upload_result = cloudinary.uploader.upload(file)
-                logging.info(f"Cloudinary upload result: {upload_result}")
-                photo_path = upload_result['secure_url']
-                if not is_url_accessible(photo_path):
-                    logging.error(f"Завантажене зображення {photo_path} недоступне після завантаження")
-                    return jsonify({'error': 'Помилка: завантажене зображення недоступне на Cloudinary!'}), 500
+                photo_path = upload_image(file)
             except Exception as e:
-                logging.error(f"Помилка завантаження на Cloudinary: {str(e)}")
                 return jsonify({'error': f'Помилка завантаження фото на Cloudinary: {str(e)}'}), 500
 
     # Створення нового автомобіля
@@ -566,15 +574,8 @@ def edit_vehicle(vehicle_id):
                 file = request.files['photo']
                 if file and allowed_file(file.filename):
                     try:
-                        upload_result = cloudinary.uploader.upload(file)
-                        logging.info(f"Cloudinary upload result: {upload_result}")
-                        vehicle.photo = upload_result['secure_url']
-                        # Перевірка доступності щойно завантаженого зображення
-                        if not is_url_accessible(vehicle.photo):
-                            logging.error(f"Завантажене зображення {vehicle.photo} недоступне після завантаження")
-                            return "Помилка: завантажене зображення недоступне на Cloudinary!", 500
+                        vehicle.photo = upload_image(file)
                     except Exception as e:
-                        logging.error(f"Помилка завантаження на Cloudinary: {str(e)}")
                         return f"Помилка завантаження фото на Cloudinary: {str(e)}", 500
 
             db.session.commit()
@@ -688,14 +689,8 @@ def add_expense(vehicle_id):
             file = request.files['receipt_photo']
             if file and allowed_file(file.filename):
                 try:
-                    upload_result = cloudinary.uploader.upload(file)
-                    logging.info(f"Cloudinary upload result for receipt: {upload_result}")
-                    receipt_photo_path = upload_result['secure_url']
-                    if not is_url_accessible(receipt_photo_path):
-                        logging.error(f"Завантажене фото чека {receipt_photo_path} недоступне після завантаження")
-                        return jsonify({'error': 'Помилка: завантажене фото чека недоступне на Cloudinary!'}), 500
+                    receipt_photo_path = upload_image(file)
                 except Exception as e:
-                    logging.error(f"Помилка завантаження фото чека на Cloudinary: {str(e)}")
                     return jsonify({'error': f'Помилка завантаження фото чека на Cloudinary: {str(e)}'}), 500
 
         new_expense = Expense(
@@ -767,14 +762,8 @@ def edit_expense(expense_id):
             file = request.files['receipt_photo']
             if file and allowed_file(file.filename):
                 try:
-                    upload_result = cloudinary.uploader.upload(file)
-                    logging.info(f"Cloudinary upload result for receipt: {upload_result}")
-                    expense.receipt_photo = upload_result['secure_url']
-                    if not is_url_accessible(expense.receipt_photo):
-                        logging.error(f"Завантажене фото чека {expense.receipt_photo} недоступне після завантаження")
-                        return "Помилка: завантажене фото чека недоступне на Cloudinary!", 500
+                    expense.receipt_photo = upload_image(file)
                 except Exception as e:
-                    logging.error(f"Помилка завантаження фото чека на Cloudinary: {str(e)}")
                     return f"Помилка завантаження фото чека на Cloudinary: {str(e)}", 500
 
         db.session.commit()
