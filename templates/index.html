@@ -252,11 +252,7 @@
                             <tr>
                                 <td class="py-2 px-4 border-b">
                                     {% if vehicle.photo %}
-                                        {% if vehicle.photo.startswith('http') %}
-                                            <img src="{{ vehicle.photo }}" alt="Фото автомобіля" class="w-12 h-12 object-cover rounded-lg">
-                                        {% else %}
-                                            <img src="{{ url_for('static', filename=vehicle.photo) }}" alt="Фото автомобіля" class="w-12 h-12 object-cover rounded-lg">
-                                        {% endif %}
+                                        <img src="{{ vehicle.photo|photo_url }}" alt="Фото автомобіля" class="w-12 h-12 object-cover rounded-lg">
                                     {% else %}
                                         <div class="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-lg">
                                             <span class="text-gray-500 text-xs">Немає</span>

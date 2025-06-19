@@ -81,11 +81,7 @@
                     <label for="photo" class="block text-gray-700 font-medium mb-1">Фото автомобіля:</label>
                     <input type="file" id="photo" name="photo" accept="image/*" class="w-full p-3 border rounded-lg">
                     {% if vehicle.photo %}
-                        {% if vehicle.photo.startswith('http') %}
-                            <p class="text-gray-600 text-sm mt-2">Поточне фото: <a href="{{ vehicle.photo }}" target="_blank">Переглянути</a></p>
-                        {% else %}
-                            <p class="text-gray-600 text-sm mt-2">Поточне фото: <a href="{{ url_for('static', filename=vehicle.photo) }}" target="_blank">Переглянути</a></p>
-                        {% endif %}
+                        <p class="text-gray-600 text-sm mt-2">Поточне фото: <a href="{{ vehicle.photo|photo_url }}" target="_blank">Переглянути</a></p>
                     {% endif %}
                 </div>
                 <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Зберегти зміни</button>
