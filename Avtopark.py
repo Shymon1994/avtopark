@@ -548,7 +548,7 @@ def add_vehicle():
     try:
         event = EventLog(
             user_id=session['user_id'],
-            action="Додавання автомобіля",
+            action="Vehicle Addition",
             details=f"Додано автомобіль {license_plate}"
         )
         db.session.add(event)
@@ -592,7 +592,7 @@ def edit_vehicle(vehicle_id):
 
             event = EventLog(
                 user_id=session['user_id'],
-                action="Редагування автомобіля",
+                action="Vehicle Edit",
                 details=f"Відредаговано автомобіль {old_license_plate} -> {vehicle.license_plate}"
             )
             db.session.add(event)
@@ -636,7 +636,7 @@ def delete_vehicle(vehicle_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Видалення автомобіля",
+            action="Vehicle Deletion",
             details=f"Видалено автомобіль {license_plate}"
         )
         db.session.add(event)
@@ -718,7 +718,7 @@ def add_expense(vehicle_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Додавання витрати",
+            action="Expense Addition",
             details=f"Додано витрату ({category}, {amount} грн, дата: {expense_date}) для автомобіля {vehicle_id}"
         )
         db.session.add(event)
@@ -780,7 +780,7 @@ def edit_expense(expense_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Редагування витрати",
+            action="Expense Edit",
             details=f"Відредаговано витрату ({old_category}, {old_amount} грн) -> ({expense.category}, {expense.amount} грн) для автомобіля {expense.vehicle_id}"
         )
         db.session.add(event)
@@ -803,7 +803,7 @@ def archive_expense(expense_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Архівування витрати",
+            action="Expense Archiving",
             details=f"Архівовано витрату ({expense.category}, {expense.amount} грн) для автомобіля {expense.vehicle_id}"
         )
         db.session.add(event)
@@ -855,7 +855,7 @@ def delete_expense(expense_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Видалення витрати",
+            action="Expense Deletion",
             details=f"Видалено витрату ({category}, {amount} грн) для автомобіля {vehicle_id}"
         )
         db.session.add(event)
@@ -904,7 +904,7 @@ def add_maintenance(vehicle_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Додавання ТО",
+            action="Maintenance Addition",
             details=f"Додано ТО ({type_to}, {mileage} км) для автомобіля {vehicle_id}"
         )
         db.session.add(event)
@@ -971,7 +971,7 @@ def add_insurance(vehicle_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Додавання страховки",
+            action="Insurance Addition",
             details=f"Додано страховку ({company}, {amount} грн) та витрату для автомобіля {vehicle_id}"
         )
         db.session.add(event)
@@ -999,7 +999,7 @@ def delete_insurance(insurance_id):
 
         event = EventLog(
             user_id=session['user_id'],
-            action="Видалення страховки",
+            action="Insurance Deletion",
             details=f"Видалено страховку ({company}, {amount} грн) для автомобіля {vehicle_id}"
         )
         db.session.add(event)
@@ -1041,7 +1041,7 @@ def add_manufacturer():
         db.session.commit()
         event = EventLog(
             user_id=session['user_id'],
-            action="Додавання виробника",
+            action="Manufacturer Addition",
             details=f"Додано виробника {name}"
         )
         db.session.add(event)
@@ -1076,7 +1076,7 @@ def edit_manufacturer(manufacturer_id):
         db.session.commit()
         event = EventLog(
             user_id=session['user_id'],
-            action="Редагування виробника",
+            action="Manufacturer Edit",
             details=f"Відредаговано виробника {old_name} -> {name}"
         )
         db.session.add(event)
@@ -1104,7 +1104,7 @@ def delete_manufacturer(manufacturer_id):
         db.session.commit()
         event = EventLog(
             user_id=session['user_id'],
-            action="Видалення виробника",
+            action="Manufacturer Deletion",
             details=f"Видалено виробника {name}"
         )
         db.session.add(event)
@@ -1143,7 +1143,7 @@ def add_model():
         db.session.commit()
         event = EventLog(
             user_id=session['user_id'],
-            action="Додавання моделі",
+            action="Model Addition",
             details=f"Додано модель {name} для виробника ID {manufacturer_id}"
         )
         db.session.add(event)
@@ -1185,7 +1185,7 @@ def edit_model(model_id):
         db.session.commit()
         event = EventLog(
             user_id=session['user_id'],
-            action="Редагування моделі",
+            action="Model Edit",
             details=f"Відредаговано модель {old_name} -> {name} для виробника ID {manufacturer_id}"
         )
         db.session.add(event)
@@ -1214,7 +1214,7 @@ def delete_model(model_id):
         db.session.commit()
         event = EventLog(
             user_id=session['user_id'],
-            action="Видалення моделі",
+            action="Model Deletion",
             details=f"Видалено модель {name} для виробника ID {manufacturer_id}"
         )
         db.session.add(event)
