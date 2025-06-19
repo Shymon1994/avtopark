@@ -184,7 +184,10 @@ def predict_expenses(vehicle_id):
     if len(expenses) < 2:
         return 0
     amounts = [expense.amount for expense in expenses]
-    avg_increase = (amounts[-1] - amounts[0]) / len(amounts)
+    # Use the number of intervals between expenses when calculating
+    # the average increase. Otherwise the predicted value will be
+    # underestimated when more than two expenses exist.
+    avg_increase = (amounts[-1] - amounts[0]) / (len(amounts) - 1)
     predicted = amounts[-1] + avg_increase
     return round(predicted, 2)
 
