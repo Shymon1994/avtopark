@@ -450,9 +450,7 @@ def export_report_pdf():
 def view_vehicle(vehicle_id):
     vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
     predicted_expense = predict_expenses(vehicle_id)
-    # Перевірка доступності фото
-    photo_accessible = is_url_accessible(vehicle.photo) if vehicle.photo else False
-    return render_template('vehicle.html', vehicle=vehicle, predicted_expense=predicted_expense, photo_accessible=photo_accessible)
+    return render_template('vehicle.html', vehicle=vehicle, predicted_expense=predicted_expense)
 
 @app.route('/add_vehicle', methods=['POST'])
 def add_vehicle():
