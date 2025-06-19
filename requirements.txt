@@ -11,3 +11,4 @@ gunicorn==21.2.0
 reportlab
 cloudinary
 python-dotenv
+pytest>=8.0.0
