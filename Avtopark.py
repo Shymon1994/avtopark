@@ -223,6 +223,7 @@ def photo_url(photo_path):
     """Return a usable URL for a photo path."""
     if not photo_path:
         return photo_path
+    photo_path = photo_path.strip()
     if photo_path.startswith('http'):
         return photo_path
     return url_for('static', filename=photo_path)
