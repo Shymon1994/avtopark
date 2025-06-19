@@ -134,7 +134,11 @@
                                             <td class="py-2 px-4 border-b">{{ expense.note or '' }}</td>
                                             <td class="py-2 px-4 border-b">
                                                 {% if expense.receipt_photo %}
-                                                    <a href="{{ url_for('static', filename=expense.receipt_photo) }}" target="_blank" class="text-blue-500 hover:underline">Переглянути</a>
+                                                    {% if expense.receipt_photo.startswith('http') %}
+                                                        <a href="{{ expense.receipt_photo }}" target="_blank" class="text-blue-500 hover:underline">Переглянути</a>
+                                                    {% else %}
+                                                        <a href="{{ url_for('static', filename=expense.receipt_photo) }}" target="_blank" class="text-blue-500 hover:underline">Переглянути</a>
+                                                    {% endif %}
                                                 {% else %}
                                                     Немає
                                                 {% endif %}
