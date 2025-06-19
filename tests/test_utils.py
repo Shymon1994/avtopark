@@ -106,6 +106,12 @@ def test_photo_url_strip(utils):
     assert photo_url(f' {https_url} ') == https_url
 
 
+def test_photo_url_empty_after_strip(utils):
+    """photo_url should return an empty string when only spaces are provided."""
+    _, _, photo_url, _, _ = utils
+    assert photo_url('  ') == ''
+
+
 def test_upload_image_success(utils):
     _, _, _, upload_image, ns = utils
     uploaded = {}
