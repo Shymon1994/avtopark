@@ -99,6 +99,13 @@ def test_photo_url_local(utils):
     assert photo_url('car.jpg') == '/static/car.jpg'
 
 
+def test_photo_url_strip(utils):
+    _, _, photo_url, _, _ = utils
+    assert photo_url('  car.jpg ') == '/static/car.jpg'
+    https_url = 'https://example.com/photo.jpg'
+    assert photo_url(f' {https_url} ') == https_url
+
+
 def test_upload_image_success(utils):
     _, _, _, upload_image, ns = utils
     uploaded = {}
