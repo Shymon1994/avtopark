@@ -178,6 +178,7 @@
                         <a href="{{ url_for('logs') }}" class="text-blue-500 hover:underline mr-4 text-sm">Лог подій</a>
                         <a href="{{ url_for('manage_manufacturers_models') }}" class="text-blue-500 hover:underline mr-4 text-sm">Керування виробниками та моделями</a>
                     {% endif %}
+                    <a href="{{ url_for('archived_expenses') }}" class="text-blue-500 hover:underline mr-4 text-sm">Архіви</a>
                     <a href="{{ url_for('logout') }}" class="text-blue-500 hover:underline text-sm">Вийти</a>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="text-blue-500 hover:underline text-sm">Увійти</a>

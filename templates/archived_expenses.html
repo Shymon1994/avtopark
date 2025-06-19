@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архівовані витрати - Nova Syla Auto</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Архівовані витрати</h1>
+            <div>
+                {% if current_user %}
+                    <span class="text-gray-600 mr-4">{{ current_user.username }} ({{ current_user.role }})</span>
+                    <a href="{{ url_for('logout') }}" class="text-blue-500 hover:underline">Вийти</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="text-blue-500 hover:underline">Увійти</a>
+                {% endif %}
+            </div>
+        </div>
+        {% if expenses %}
+        <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th class="py-2 px-4 border-b text-left">Автомобіль</th>
+                        <th class="py-2 px-4 border-b text-left">Категорія</th>
+                        <th class="py-2 px-4 border-b text-left">Сума</th>
+                        <th class="py-2 px-4 border-b text-left">Дата</th>
+                        <th class="py-2 px-4 border-b text-left">Примітка</th>
+                        <th class="py-2 px-4 border-b text-left">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td class="py-2 px-4 border-b">{{ expense.expense_vehicle.license_plate }}</td>
+                        <td class="py-2 px-4 border-b">{{ expense.category }}</td>
+                        <td class="py-2 px-4 border-b">{{ expense.amount }} грн</td>
+                        <td class="py-2 px-4 border-b">{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                        <td class="py-2 px-4 border-b">{{ expense.note or '' }}</td>
+                        <td class="py-2 px-4 border-b">
+                            <form action="{{ url_for('unarchive_expense', expense_id=expense.id) }}" method="post" class="inline">
+                                <button type="submit" class="text-green-500 hover:underline mr-2">Відновити</button>
+                            </form>
+                            <form action="{{ url_for('delete_expense', expense_id=expense.id) }}" method="post" class="inline">
+                                <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити цю витрату?')" class="text-red-500 hover:underline">Видалити</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-600">Архівованих витрат немає.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
