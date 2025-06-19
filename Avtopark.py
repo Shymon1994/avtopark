@@ -465,6 +465,13 @@ def export_report_pdf():
         headers={'Content-Disposition': 'attachment; filename=report.pdf'}
     )
 
+
+@app.route('/archived_expenses')
+@login_required
+def archived_expenses():
+    expenses = Expense.query.filter_by(is_archived=True).all()
+    return render_template('archived_expenses.html', expenses=expenses)
+
 @app.route('/vehicle/<int:vehicle_id>')
 @login_required
 def view_vehicle(vehicle_id):
@@ -807,6 +814,29 @@ def archive_expense(expense_id):
     except Exception as e:
         logging.error(f"Помилка при архівуванні витрати {expense_id}: {str(e)}")
         return f"Помилка при архівуванні витрати: {str(e)}", 500
+
+
+@app.route('/unarchive_expense/<int:expense_id>', methods=['POST'])
+@login_required
+def unarchive_expense(expense_id):
+    try:
+        expense = db.session.get(Expense, expense_id) or Expense.query.get_or_404(expense_id)
+        expense.is_archived = False
+        db.session.commit()
+
+        event = EventLog(
+            user_id=session['user_id'],
+            action="Expense Unarchiving",
+            details=f"Розархівовано витрату ({expense.category}, {expense.amount} грн) для автомобіля {expense.vehicle_id}"
+        )
+        db.session.add(event)
+        db.session.commit()
+
+        logging.info(f"Розархівовано витрату ({expense.category}, {expense.amount} грн) для автомобіля {expense.vehicle_id} користувачем {session['username']} (IP: {request.remote_addr})")
+        return redirect(url_for('archived_expenses'))
+    except Exception as e:
+        logging.error(f"Помилка при розархівуванні витрати {expense_id}: {str(e)}")
+        return f"Помилка при розархівуванні витрати: {str(e)}", 500
 
 @app.route('/delete_expense/<int:expense_id>', methods=['POST'])
 @login_required
