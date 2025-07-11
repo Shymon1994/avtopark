@@ -15,7 +15,13 @@ def load_utils():
     tree = ast.parse(source)
     lines = source.splitlines()
     funcs = {}
-    to_load = {'allowed_file', 'predict_expenses', 'photo_url', 'upload_image'}
+    to_load = {
+        'allowed_file',
+        'predict_expenses',
+        'photo_url',
+        'upload_image',
+        'parse_bool',
+    }
     for node in tree.body:
         if isinstance(node, ast.FunctionDef) and node.name in to_load:
             code = '\n'.join(lines[node.lineno-1:node.end_lineno])
@@ -47,6 +53,7 @@ def load_utils():
         ns['predict_expenses'],
         ns['photo_url'],
         ns['upload_image'],
+        ns['parse_bool'],
         ns,
     )
 
@@ -66,14 +73,14 @@ class FakeQuery:
 
 
 def test_predict_expenses_returns_zero(utils):
-    allowed_file, predict_expenses, photo_url, upload_image, ns = utils
+    allowed_file, predict_expenses, photo_url, upload_image, parse_bool, ns = utils
     Expense = ns['Expense']
     Expense.query = FakeQuery([types.SimpleNamespace(amount=100)])
     assert predict_expenses(1) == 0
 
 
 def test_predict_expenses_multiple(utils):
-    allowed_file, predict_expenses, photo_url, upload_image, ns = utils
+    allowed_file, predict_expenses, photo_url, upload_image, parse_bool, ns = utils
     Expense = ns['Expense']
     amounts = [100, 150, 200]
     Expense.query = FakeQuery([types.SimpleNamespace(amount=a) for a in amounts])
@@ -82,25 +89,25 @@ def test_predict_expenses_multiple(utils):
 
 
 def test_allowed_file(utils):
-    allowed_file, _, _, _, _ = utils
+    allowed_file, _, _, _, _, _ = utils
     assert allowed_file('photo.png')
     assert allowed_file('picture.JPG')
     assert not allowed_file('document.pdf')
 
 
 def test_photo_url_http(utils):
-    _, _, photo_url, _, _ = utils
+    _, _, photo_url, _, _, _ = utils
     url = 'http://example.com/image.jpg'
     assert photo_url(url) == url
 
 
 def test_photo_url_local(utils):
-    _, _, photo_url, _, _ = utils
+    _, _, photo_url, _, _, _ = utils
     assert photo_url('car.jpg') == '/static/car.jpg'
 
 
 def test_photo_url_strip(utils):
-    _, _, photo_url, _, _ = utils
+    _, _, photo_url, _, _, _ = utils
     assert photo_url('  car.jpg ') == '/static/car.jpg'
     https_url = 'https://example.com/photo.jpg'
     assert photo_url(f' {https_url} ') == https_url
@@ -108,12 +115,12 @@ def test_photo_url_strip(utils):
 
 def test_photo_url_empty_after_strip(utils):
     """photo_url should return an empty string when only spaces are provided."""
-    _, _, photo_url, _, _ = utils
+    _, _, photo_url, _, _, _ = utils
     assert photo_url('  ') == ''
 
 
 def test_upload_image_success(utils):
-    _, _, _, upload_image, ns = utils
+    _, _, _, upload_image, parse_bool, ns = utils
     uploaded = {}
     def fake_upload(file):
         uploaded['file'] = file
@@ -126,7 +133,7 @@ def test_upload_image_success(utils):
 
 
 def test_upload_image_inaccessible(utils):
-    _, _, _, upload_image, ns = utils
+    _, _, _, upload_image, parse_bool, ns = utils
     ns['cloudinary'].uploader.upload = lambda f: {'secure_url': 'http://bad.url'}
     ns['is_url_accessible'] = lambda url: False
     with pytest.raises(Exception):
@@ -134,9 +141,17 @@ def test_upload_image_inaccessible(utils):
 
 
 def test_upload_image_upload_error(utils):
-    _, _, _, upload_image, ns = utils
+    _, _, _, upload_image, parse_bool, ns = utils
     def raiser(f):
         raise ValueError('fail')
     ns['cloudinary'].uploader.upload = raiser
     with pytest.raises(Exception):
         upload_image('f')
+
+
+def test_parse_bool_variations(utils):
+    _, _, _, _, parse_bool, _ = utils
+    assert parse_bool('false') is False
+    assert parse_bool('0') is False
+    assert parse_bool('False') is False
+    assert parse_bool('yes') is True

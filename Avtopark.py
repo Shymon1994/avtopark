@@ -17,8 +17,19 @@ import cloudinary.uploader
 import requests  # Додано для перевірки доступності URL
 from dotenv import load_dotenv
 
+
+def parse_bool(value):
+    """Return False for 'false', '0', 'no', '' (case-insensitive), True otherwise."""
+    if value is None:
+        return False
+    value = str(value).strip().lower()
+    return False if value in {'false', '0', 'no', ''} else True
+
 load_dotenv()
 cloudinary.config(secure=True)
+
+# Whether to use Cloudinary for image uploads
+USE_CLOUDINARY = parse_bool(os.environ.get('USE_CLOUDINARY', 'true'))
 
 # Налаштування логування
 logging.basicConfig(filename='fleet.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
