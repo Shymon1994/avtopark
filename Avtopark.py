@@ -16,6 +16,7 @@ import cloudinary
 import cloudinary.uploader
 import requests  # Додано для перевірки доступності URL
 from dotenv import load_dotenv
+from uuid import uuid4
 
 load_dotenv()
 cloudinary.config(secure=True)
@@ -35,6 +36,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+app.config['USE_CLOUDINARY'] = os.environ.get('USE_CLOUDINARY', 'True') != 'False'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -205,8 +207,16 @@ def is_url_accessible(url):
 
 
 def upload_image(file):
-    """Upload an image to Cloudinary and verify it is accessible."""
+    """Upload an image to Cloudinary or save locally based on configuration."""
     try:
+        if not app.config.get('USE_CLOUDINARY', True):
+            filename = secure_filename(file.filename)
+            unique_name = f"{uuid4().hex}_{filename}"
+            save_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+            file.save(save_path)
+            rel_path = os.path.relpath(save_path, os.path.join(BASE_DIR, 'static'))
+            return rel_path.replace("\\", "/")
+
         upload_result = cloudinary.uploader.upload(file)
         logging.info(f"Cloudinary upload result: {upload_result}")
         secure_url = upload_result['secure_url']
@@ -217,7 +227,7 @@ def upload_image(file):
             raise Exception('Uploaded image is not accessible on Cloudinary!')
         return secure_url
     except Exception as e:
-        logging.error(f"Помилка завантаження на Cloudinary: {str(e)}")
+        logging.error(f"Помилка завантаження зображення: {str(e)}")
         raise
 
 
@@ -527,7 +537,7 @@ def add_vehicle():
             try:
                 photo_path = upload_image(file)
             except Exception as e:
-                return jsonify({'error': f'Помилка завантаження фото на Cloudinary: {str(e)}'}), 500
+                return jsonify({'error': f'Помилка завантаження фото: {str(e)}'}), 500
 
     # Створення нового автомобіля
     try:
@@ -589,7 +599,7 @@ def edit_vehicle(vehicle_id):
                     try:
                         vehicle.photo = upload_image(file)
                     except Exception as e:
-                        return f"Помилка завантаження фото на Cloudinary: {str(e)}", 500
+                        return f"Помилка завантаження фото: {str(e)}", 500
 
             db.session.commit()
 
@@ -619,7 +629,7 @@ def delete_vehicle(vehicle_id):
         vehicle = db.session.get(Vehicle, vehicle_id) or Vehicle.query.get_or_404(vehicle_id)
         license_plate = vehicle.license_plate
 
-        # Видалення локального фото (хоча ми використовуємо Cloudinary, залишимо для сумісності)
+        # Видалення локального фото, якщо воно зберігається локально
         if vehicle.photo and not vehicle.photo.startswith('http'):
             filename = os.path.basename(vehicle.photo)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -704,7 +714,7 @@ def add_expense(vehicle_id):
                 try:
                     receipt_photo_path = upload_image(file)
                 except Exception as e:
-                    return jsonify({'error': f'Помилка завантаження фото чека на Cloudinary: {str(e)}'}), 500
+                    return jsonify({'error': f'Помилка завантаження фото чека: {str(e)}'}), 500
 
         new_expense = Expense(
             vehicle_id=vehicle_id,
@@ -777,7 +787,7 @@ def edit_expense(expense_id):
                 try:
                     expense.receipt_photo = upload_image(file)
                 except Exception as e:
-                    return f"Помилка завантаження фото чека на Cloudinary: {str(e)}", 500
+                    return f"Помилка завантаження фото чека: {str(e)}", 500
 
         db.session.commit()
 

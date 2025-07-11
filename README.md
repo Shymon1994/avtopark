@@ -20,6 +20,9 @@ Set the following variables before running the app or the tests:
 * `CLOUDINARY_URL` – connection string for your Cloudinary account.
 * `DATABASE_URL` – optional SQLAlchemy URI to use instead of the default
   SQLite database.
+* `USE_CLOUDINARY` – set to `False` to store uploaded images in `static/uploads/` instead of Cloudinary.
+
+When Cloudinary is disabled, files are saved inside the `static/uploads/` directory relative to the project root.
 
 Example on Linux or macOS:
 
