@@ -22,7 +22,11 @@ def load_utils():
             funcs[node.name] = code
     ns = {}
     class App:
-        config = {'ALLOWED_EXTENSIONS': {'png', 'jpg', 'jpeg'}}
+        config = {
+            'ALLOWED_EXTENSIONS': {'png', 'jpg', 'jpeg'},
+            'UPLOAD_FOLDER': 'uploads',
+            'USE_CLOUDINARY': True,
+        }
     ns['app'] = App()
     class Expense:
         pass
@@ -39,6 +43,13 @@ def load_utils():
     ns['cloudinary'] = types.SimpleNamespace(uploader=CloudinaryUploader())
     ns['is_url_accessible'] = lambda url: True
     ns['logging'] = types.SimpleNamespace(info=lambda *a, **k: None, error=lambda *a, **k: None)
+    ns['os'] = os
+    ns['BASE_DIR'] = root
+    from uuid import uuid4 as real_uuid4
+    def fake_secure_filename(name):
+        return name.replace(' ', '_')
+    ns['uuid4'] = real_uuid4
+    ns['secure_filename'] = fake_secure_filename
 
     for code in funcs.values():
         exec(code, ns)
@@ -140,3 +151,29 @@ def test_upload_image_upload_error(utils):
     ns['cloudinary'].uploader.upload = raiser
     with pytest.raises(Exception):
         upload_image('f')
+
+
+def test_upload_image_local(monkeypatch, tmp_path, utils):
+    """upload_image should save locally when USE_CLOUDINARY is False."""
+    _, _, _, upload_image, ns = utils
+    ns['app'].config['USE_CLOUDINARY'] = False
+    base = tmp_path / "root"
+    uploads = base / "static" / "uploads"
+    uploads.mkdir(parents=True)
+    ns['BASE_DIR'] = str(base)
+    ns['app'].config['UPLOAD_FOLDER'] = str(uploads)
+
+    monkeypatch.setitem(ns, 'uuid4', lambda: types.SimpleNamespace(hex='id'))
+
+    saved = {}
+
+    class File:
+        filename = 'photo.png'
+        def save(self, path):
+            saved['path'] = path
+
+    result = upload_image(File())
+
+    expected_path = os.path.join(str(uploads), 'id_photo.png')
+    assert saved['path'] == expected_path
+    assert result == 'uploads/id_photo.png'
